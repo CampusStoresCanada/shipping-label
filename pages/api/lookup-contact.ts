@@ -88,6 +88,8 @@ export default async function handler(
       email: data.email,
       phone: data.phone,
       organization_id: data.organization_id,
+      vcard_url: (data as any).vcard_url || null,
+      notion_id: (data as any).notion_id || null,
       created_at: data.created_at,
       organization: Array.isArray(data.organizations)
         ? data.organizations[0]

@@ -8,7 +8,7 @@ export async function syncContacts(supabase: ReturnType<typeof createClient>) {
 
   try {
     // Get all contacts from Notion
-    const response = await notion.databases.query({
+    const response = await (notion.databases as any).query({
       database_id: process.env.NOTION_CONTACTS_DB!,
     })
 
@@ -21,7 +21,7 @@ export async function syncContacts(supabase: ReturnType<typeof createClient>) {
 
     const orgMap = new Map<string, string>()
     const orgByNotionId = new Map<string, string>()
-    organizations?.forEach(org => {
+    organizations?.forEach((org: any) => {
       orgMap.set(org.name.toLowerCase().trim(), org.id)
       if (org.notion_id) {
         orgByNotionId.set(org.notion_id, org.id)
@@ -73,7 +73,7 @@ export async function syncContacts(supabase: ReturnType<typeof createClient>) {
     for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
       const batch = contacts.slice(i, i + BATCH_SIZE)
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('contacts')
         .upsert(batch, {
           onConflict: 'email',
@@ -104,7 +104,7 @@ export async function syncOrganizations(supabase: ReturnType<typeof createClient
 
   try {
     // Get all organizations from Notion
-    const response = await notion.databases.query({
+    const response = await (notion.databases as any).query({
       database_id: process.env.NOTION_ORGANIZATIONS_DB!,
     })
 
@@ -167,7 +167,7 @@ export async function syncOrganizations(supabase: ReturnType<typeof createClient
     for (let i = 0; i < organizations.length; i += BATCH_SIZE) {
       const batch = organizations.slice(i, i + BATCH_SIZE)
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('organizations')
         .upsert(batch, {
           onConflict: 'notion_id',

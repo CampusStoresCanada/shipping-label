@@ -23,11 +23,11 @@ export default function AccountSelector({
   const instCost = costEstimates?.institution
   let cheapest: 'csc' | 'institution' | null = null
 
-  if (cscCost !== null && instCost !== null) {
+  if (cscCost != null && instCost != null) {
     cheapest = cscCost < instCost ? 'csc' : 'institution'
-  } else if (cscCost !== null) {
+  } else if (cscCost != null) {
     cheapest = 'csc'
-  } else if (instCost !== null) {
+  } else if (instCost != null) {
     cheapest = 'institution'
   }
 
@@ -106,7 +106,7 @@ export default function AccountSelector({
           <div className="text-sm text-gray-500">
             Account #{cscAccount}
           </div>
-          {cscCost !== null && (
+          {cscCost != null && (
             <div className="mt-1">
               <div className="text-lg font-bold text-gray-900">
                 ${cscCost.toFixed(2)}
@@ -146,7 +146,7 @@ export default function AccountSelector({
             <div className="text-sm text-gray-500">
               Account #{organizationAccount}
             </div>
-            {instCost !== null && (
+            {instCost != null && (
               <div className="mt-1">
                 <div className="text-lg font-bold text-gray-900">
                   ${instCost.toFixed(2)}

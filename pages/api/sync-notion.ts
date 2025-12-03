@@ -43,7 +43,7 @@ export default async function handler(
     )
 
     // Sync organizations first (contacts depend on them)
-    const orgResult = await syncOrganizations(supabase)
+    const orgResult = await syncOrganizations(supabase as any)
 
     if (!orgResult.success) {
       return res.status(500).json({
@@ -54,7 +54,7 @@ export default async function handler(
     }
 
     // Then sync contacts
-    const contactResult = await syncContacts(supabase)
+    const contactResult = await syncContacts(supabase as any)
 
     if (!contactResult.success) {
       return res.status(500).json({

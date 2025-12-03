@@ -6,7 +6,7 @@ import { getStripeConfig } from '@/lib/stripe-config'
 
 const stripeConfig = getStripeConfig()
 const stripe = new Stripe(stripeConfig.secretKey, {
-  apiVersion: '2024-11-20.acacia'
+  apiVersion: '2025-11-17.clover'
 })
 
 // Disable body parsing for webhook endpoint (we need raw body)
