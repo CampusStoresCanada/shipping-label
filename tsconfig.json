@@ -27,6 +27,7 @@
   "exclude": [
     "node_modules",
     "scripts/**/*",
+    "supabase/**/*",
     "run-cron-setup.ts",
     "setup-cron-job.ts",
     "test-purolator.ts",
