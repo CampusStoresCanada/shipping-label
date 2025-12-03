@@ -1,8 +1,16 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { buffer } from 'stream/consumers'
 import { getStripeConfig } from '@/lib/stripe-config'
+
+// Helper to read raw body
+async function buffer(readable: any) {
+  const chunks = []
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+  }
+  return Buffer.concat(chunks)
+}
 
 const stripeConfig = getStripeConfig()
 const stripe = new Stripe(stripeConfig.secretKey, {
