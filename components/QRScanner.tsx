@@ -58,6 +58,8 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       setError(null)
       setScanning(true)
 
+      console.log('📷 Requesting camera access...')
+
       // Request camera access (rear camera preferred for mobile)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -67,15 +69,22 @@ export default function QRScanner({ onScan }: QRScannerProps) {
         }
       })
 
+      console.log('✅ Camera stream obtained:', stream.getVideoTracks()[0].label)
       streamRef.current = stream
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        videoRef.current.play()
+
+        // Wait for video to be ready before playing
+        await videoRef.current.play()
+        console.log('✅ Video playing')
+
         setIsCameraActive(true)
+        setScanning(false)
 
         // Start scanning after video is ready
         videoRef.current.onloadedmetadata = () => {
+          console.log('✅ Video metadata loaded, starting QR scan loop')
           scanQRCode()
         }
       }
@@ -83,7 +92,7 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       console.error('Camera access error:', err)
       setError(err.name === 'NotAllowedError'
         ? 'Camera access denied. Please enable camera permissions.'
-        : 'Failed to access camera. Please try manual entry.')
+        : `Failed to access camera: ${err.message}. Please try manual entry.`)
       setScanning(false)
     }
   }
@@ -172,7 +181,7 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       </div>
 
       {/* Camera View */}
-      <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+      <div className="relative bg-gray-900 rounded-lg overflow-hidden min-h-[400px]">
         {!isCameraActive && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
             <div className="text-6xl">📱</div>
@@ -190,9 +199,11 @@ export default function QRScanner({ onScan }: QRScannerProps) {
           <>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="w-full h-auto"
               playsInline
               muted
+              autoPlay
+              style={{ display: 'block', minHeight: '400px' }}
             />
             <canvas
               ref={canvasRef}
