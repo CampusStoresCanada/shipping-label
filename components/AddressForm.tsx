@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 type AddressFormProps = {
   initialAddress: {
@@ -16,9 +16,12 @@ type AddressFormProps = {
   onBack: () => void
 }
 
-const PROVINCES = [
-  'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
-]
+declare global {
+  interface Window {
+    google: any
+    initMap: () => void
+  }
+}
 
 export default function AddressForm({
   initialAddress,
@@ -28,144 +31,176 @@ export default function AddressForm({
   const [address, setAddress] = useState(initialAddress)
   const [isEditing, setIsEditing] = useState(false)
   const [error, setError] = useState('')
+  const [googleLoaded, setGoogleLoaded] = useState(false)
+  const autocompleteRef = useRef<any>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Load Google Maps script
+  useEffect(() => {
+    if (window.google?.maps) {
+      setGoogleLoaded(true)
+      return
+    }
+
+    // Get the API key from the page props (passed from server)
+    const apiKey = (window as any).__GOOGLE_MAPS_API_KEY__
+    if (!apiKey) {
+      console.error('Google Maps API key not found')
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
+    script.async = true
+    script.defer = true
+    script.onload = () => setGoogleLoaded(true)
+    document.head.appendChild(script)
+  }, [])
+
+  // Initialize autocomplete when editing
+  useEffect(() => {
+    if (!googleLoaded || !isEditing || !inputRef.current) return
+
+    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+      componentRestrictions: { country: 'ca' },
+      fields: ['address_components', 'formatted_address'],
+      types: ['address']
+    })
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace()
+
+      if (!place.address_components) return
+
+      let street = ''
+      let city = ''
+      let province = ''
+      let postalCode = ''
+
+      place.address_components.forEach((component: any) => {
+        const types = component.types
+
+        if (types.includes('street_number')) {
+          street = component.long_name + ' '
+        }
+        if (types.includes('route')) {
+          street += component.long_name
+        }
+        if (types.includes('locality')) {
+          city = component.long_name
+        }
+        if (types.includes('administrative_area_level_1')) {
+          province = component.short_name
+        }
+        if (types.includes('postal_code')) {
+          postalCode = component.long_name
+        }
+      })
+
+      setAddress({
+        street: street.trim(),
+        city,
+        province,
+        postalCode
+      })
+      setIsEditing(false)
+    })
+
+    autocompleteRef.current = autocomplete
+  }, [googleLoaded, isEditing])
 
   const handleConfirm = () => {
     setError('')
 
-    // Validate
     if (!address.street || !address.city || !address.province || !address.postalCode) {
       setError('All fields are required')
       return
     }
 
-    // Validate postal code format (Canadian)
     const postalCodeRegex = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/
     if (!postalCodeRegex.test(address.postalCode)) {
-      setError('Invalid postal code format (e.g., A1A 1A1)')
+      setError('Invalid postal code format')
       return
     }
 
     onConfirm(address)
   }
 
+  const fullAddress = `${address.street}, ${address.city}, ${address.province} ${address.postalCode}, Canada`
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Shipping Address
-        </h2>
-        <p className="text-gray-600">
-          Confirm or edit the destination address
-        </p>
-      </div>
-
+    <div className="space-y-6" style={{ fontFamily: '"Helvetica Neue", Arial, sans-serif' }}>
       {!isEditing ? (
-        // Display mode
-        <div className="bg-gray-50 rounded-lg p-6 space-y-2">
-          <div className="text-gray-900 font-medium">{address.street}</div>
-          <div className="text-gray-900">
-            {address.city}, {address.province} {address.postalCode}
+        <>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-6">
+              Is this your shipping address?
+            </h3>
+
+            <div className="bg-white border border-gray-200 rounded p-5 space-y-2 mb-6">
+              <div className="text-base text-gray-900 font-medium">{address.street}</div>
+              <div className="text-base text-gray-900">
+                {address.city}, {address.province}
+              </div>
+              <div className="text-base text-gray-900">{address.postalCode}</div>
+              <div className="text-base text-gray-600">Canada</div>
+            </div>
           </div>
-          <div className="text-gray-900">Canada</div>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
-          >
-            ✏️ Edit Address
-          </button>
-        </div>
+
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-base">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={handleConfirm}
+              className="w-full bg-gray-900 hover:bg-black text-white font-medium px-6 py-4 rounded text-base transition-all duration-200"
+            >
+              Confirm Address
+            </button>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium px-6 py-4 rounded border border-gray-300 text-base transition-all duration-200"
+            >
+              Change Address
+            </button>
+            <button
+              onClick={onBack}
+              className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded border border-gray-200 text-sm transition-all duration-200"
+            >
+              Back
+            </button>
+          </div>
+        </>
       ) : (
-        // Edit mode
-        <div className="space-y-4">
+        <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Street Address
-            </label>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Enter new address
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Start typing to search for an address
+            </p>
+
             <input
+              ref={inputRef}
               type="text"
-              value={address.street}
-              onChange={(e) => setAddress({ ...address, street: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="123 Main Street"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                City
-              </label>
-              <input
-                type="text"
-                value={address.city}
-                onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Toronto"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Province
-              </label>
-              <select
-                value={address.province}
-                onChange={(e) => setAddress({ ...address, province: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">Select...</option>
-                {PROVINCES.map((prov) => (
-                  <option key={prov} value={prov}>
-                    {prov}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Postal Code
-            </label>
-            <input
-              type="text"
-              value={address.postalCode}
-              onChange={(e) => setAddress({ ...address, postalCode: e.target.value.toUpperCase() })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="A1A 1A1"
-              maxLength={7}
+              placeholder="Start typing your address..."
+              className="w-full px-4 py-4 border border-gray-300 rounded text-base focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+              defaultValue={fullAddress}
             />
           </div>
 
           <button
             onClick={() => setIsEditing(false)}
-            className="text-gray-600 hover:text-gray-700 text-sm"
+            className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded border border-gray-200 text-sm transition-all duration-200"
           >
             Cancel
           </button>
-        </div>
+        </>
       )}
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-lg transition-colors"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleConfirm}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-        >
-          ✓ Address Looks Good
-        </button>
-      </div>
     </div>
   )
 }

@@ -12,18 +12,35 @@ export default function QRScanner({ onScan }: QRScannerProps) {
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationRef = useRef<number | null>(null)
 
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Auto-start camera on desktop
+  useEffect(() => {
+    if (!isMobile && !isCameraActive && !streamRef.current) {
+      startCamera()
+    }
+  }, [isMobile])
+
   const lookupContact = async (vcardUrl: string) => {
     try {
       setScanning(true)
       setError(null)
-
-      console.log('🔍 Looking up contact:', vcardUrl)
 
       const response = await fetch(`/api/lookup-vcard?url=${encodeURIComponent(vcardUrl)}`)
       const result = await response.json()
@@ -37,11 +54,8 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       const contact = result.contact
       const organizationName = contact.organization?.name || 'Unknown'
 
-      console.log('✅ Found contact:', contact.name, contact.email, organizationName)
-
       onScan(contact.email, contact.name, organizationName)
     } catch (err: any) {
-      console.error('Lookup error:', err)
       setError('Failed to lookup contact. Please use manual entry.')
       setScanning(false)
     }
@@ -58,50 +72,22 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       setError(null)
       setScanning(true)
 
-      console.log('📷 Requesting camera access...')
-
-      // Request camera access (rear camera preferred for mobile)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' }, // Prefer rear camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         }
       })
 
-      console.log('✅ Camera stream obtained:', stream.getVideoTracks()[0].label)
       streamRef.current = stream
+      setIsCameraActive(true)
+      setScanning(false)
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-
-        // Start scanning after video is ready
-        videoRef.current.onloadedmetadata = () => {
-          console.log('✅ Video metadata loaded')
-          console.log('   Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)
-          console.log('   Video element dimensions:', videoRef.current?.offsetWidth, 'x', videoRef.current?.offsetHeight)
-          scanQRCode()
-        }
-
-        // Set camera active BEFORE playing
-        setIsCameraActive(true)
-        setScanning(false)
-
-        // Wait for video to be ready before playing
-        try {
-          await videoRef.current.play()
-          console.log('✅ Video.play() succeeded')
-          console.log('   Video paused?', videoRef.current.paused)
-          console.log('   Video readyState:', videoRef.current.readyState)
-        } catch (playErr) {
-          console.error('❌ Video.play() failed:', playErr)
-        }
-      }
     } catch (err: any) {
-      console.error('Camera access error:', err)
       setError(err.name === 'NotAllowedError'
-        ? 'Camera access denied. Please enable camera permissions.'
-        : `Failed to access camera: ${err.message}. Please try manual entry.`)
+        ? 'Camera access denied'
+        : 'Failed to access camera')
       setScanning(false)
     }
   }
@@ -133,33 +119,25 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       return
     }
 
-    // Set canvas size to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    try {
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      })
 
-    // Get image data from canvas
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-
-    // Scan for QR code using jsQR (works on all browsers including Safari)
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
-    })
-
-    if (code) {
-      // QR code detected!
-      console.log('QR Code detected:', code.data)
-
-      // Stop scanning immediately to prevent multiple reads
-      stopCamera()
-
-      // Lookup contact by vCard URL
-      lookupContact(code.data)
+      if (code) {
+        stopCamera()
+        lookupContact(code.data)
+        return
+      }
+    } catch (scanErr) {
+      // Ignore scan errors
     }
 
-    // Continue scanning
     animationRef.current = requestAnimationFrame(scanQRCode)
   }
 
@@ -170,145 +148,278 @@ export default function QRScanner({ onScan }: QRScannerProps) {
     }
   }, [])
 
-  // Restart scanning when camera becomes active
+  // Attach stream to video element when camera becomes active
+  useEffect(() => {
+    if (!isCameraActive || !streamRef.current || !videoRef.current) {
+      return
+    }
+
+    const video = videoRef.current
+    const stream = streamRef.current
+
+    video.srcObject = stream
+
+    video.onloadedmetadata = () => {
+      scanQRCode()
+    }
+
+    video.oncanplay = () => {
+      if (!animationRef.current) {
+        scanQRCode()
+      }
+    }
+
+    video.play().catch(() => {
+      // Ignore play errors
+    })
+  }, [isCameraActive])
+
+  // Backup: Start scanning after a brief delay
   useEffect(() => {
     if (isCameraActive && !animationRef.current) {
-      scanQRCode()
+      const timer = setTimeout(() => {
+        scanQRCode()
+      }, 100)
+
+      return () => clearTimeout(timer)
     }
   }, [isCameraActive])
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="text-6xl mb-4">📷</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Scan Conference Badge
-        </h2>
-        <p className="text-gray-600">
-          Point the camera at the QR code on the back of the badge
-        </p>
-      </div>
+    <div className="h-screen flex" style={{ fontFamily: '"Helvetica Neue", Arial, sans-serif' }}>
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div className="w-96 bg-gray-50 border-r border-gray-200 p-8 flex flex-col">
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-3">
+              Shipping Station
+            </h1>
+            <p className="text-base text-gray-600">
+              Scan your conference badge to create a shipping label
+            </p>
+          </div>
+
+          <div className="flex-1">
+            <div className="mb-6">
+              <h3 className="text-base font-medium text-gray-900 mb-4">Instructions</h3>
+              <ol className="text-base text-gray-600 space-y-3">
+                <li>1. Position QR code in frame</li>
+                <li>2. Hold steady until scanned</li>
+                <li>3. Follow on-screen prompts</li>
+              </ol>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-base">
+                {error}
+              </div>
+            )}
+
+            {/* Manual Entry (collapsed by default) */}
+            <details className="group">
+              <summary className="text-base font-medium text-gray-700 cursor-pointer hover:text-gray-900 mb-4">
+                Manual Entry
+              </summary>
+              <div className="space-y-3 mt-3">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded text-base focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded text-base focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                />
+                <input
+                  type="text"
+                  placeholder="Organization"
+                  value={manualOrg}
+                  onChange={(e) => setManualOrg(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded text-base focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                />
+                <button
+                  onClick={handleManualSubmit}
+                  disabled={!manualEmail || !manualName || !manualOrg}
+                  className="w-full bg-gray-900 hover:bg-black text-white font-medium px-6 py-3 rounded text-base transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continue
+                </button>
+              </div>
+            </details>
+          </div>
+
+          <div className="text-sm text-gray-500 mt-8">
+            Need help? google@campusstores.ca
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Hamburger Menu */}
+      {isMobile && (
+        <>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="fixed top-4 left-4 z-50 w-10 h-10 bg-white rounded shadow-lg flex items-center justify-center"
+          >
+            <div className="w-5 h-4 flex flex-col justify-between">
+              <span className="w-full h-0.5 bg-gray-900 block"></span>
+              <span className="w-full h-0.5 bg-gray-900 block"></span>
+              <span className="w-full h-0.5 bg-gray-900 block"></span>
+            </div>
+          </button>
+
+          {menuOpen && (
+            <div className="fixed inset-0 z-40 bg-white p-6 overflow-y-auto">
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-gray-600"
+              >
+                <span className="text-2xl">&times;</span>
+              </button>
+
+              <div className="mt-12">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  Shipping Station
+                </h2>
+
+                <div className="mb-8">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Instructions</h3>
+                  <ol className="text-sm text-gray-600 space-y-2">
+                    <li>1. Position QR code in frame</li>
+                    <li>2. Hold steady until scanned</li>
+                    <li>3. Follow on-screen prompts</li>
+                  </ol>
+                </div>
+
+                {error && (
+                  <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="mb-8">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3">Manual Entry</h3>
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={manualEmail}
+                      onChange={(e) => setManualEmail(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Organization"
+                      value={manualOrg}
+                      onChange={(e) => setManualOrg(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+                    />
+                    <button
+                      onClick={() => {
+                        handleManualSubmit()
+                        setMenuOpen(false)
+                      }}
+                      disabled={!manualEmail || !manualName || !manualOrg}
+                      className="w-full bg-gray-900 hover:bg-black text-white font-medium px-4 py-2 rounded text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  Need help? google@campusstores.ca
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Camera View */}
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden min-h-[400px]">
-        {!isCameraActive && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-            <div className="text-6xl">📱</div>
+      <div className="flex-1 relative bg-black">
+        {!isCameraActive && !error && isMobile && (
+          <div className="absolute inset-0 flex items-center justify-center">
             <button
               onClick={startCamera}
               disabled={scanning}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors disabled:opacity-50"
+              className="bg-white text-gray-900 font-medium px-8 py-3 rounded shadow-lg hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
             >
-              {scanning ? 'Starting Camera...' : 'Start Camera'}
+              {scanning ? 'Starting...' : 'Start Camera'}
             </button>
           </div>
         )}
 
         {isCameraActive && (
-          <div className="absolute inset-0 flex flex-col">
+          <>
             <video
               ref={videoRef}
               playsInline
               muted
               autoPlay
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                backgroundColor: '#1f2937',
-                zIndex: 1
-              }}
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            <canvas
-              ref={canvasRef}
-              className="hidden"
-            />
+            <canvas ref={canvasRef} className="hidden" />
 
-            {/* Scanning indicator */}
-            <div style={{ position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
-              Scanning for QR Code...
+            {/* Scanning frame */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div
+                className="relative z-10 pointer-events-auto"
+                style={{
+                  width: '320px',
+                  height: '320px',
+                  border: '3px solid white',
+                  borderRadius: '8px',
+                }}
+              >
+                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-white text-base font-medium whitespace-nowrap bg-black bg-opacity-70 px-4 py-2 rounded">
+                  Position QR code here
+                </div>
+              </div>
             </div>
 
-            {/* Stop button */}
-            <button
-              onClick={stopCamera}
-              style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 10 }}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
-            >
-              Stop Camera
-            </button>
+            {/* Stop button (desktop only) */}
+            {!isMobile && (
+              <button
+                onClick={stopCamera}
+                className="absolute top-6 right-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium shadow-lg transition-all duration-200"
+              >
+                Stop Camera
+              </button>
+            )}
+          </>
+        )}
 
-            {/* Debug info */}
-            <div style={{ position: 'absolute', bottom: '16px', left: '16px', zIndex: 10 }} className="bg-black bg-opacity-75 text-white text-xs p-2 rounded font-mono">
-              Stream active: {streamRef.current ? 'YES' : 'NO'}<br/>
-              Video ref: {videoRef.current ? 'YES' : 'NO'}<br/>
-              Tracks: {streamRef.current?.getVideoTracks().length || 0}
+        {error && !menuOpen && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80">
+            <div className="text-center p-8">
+              <p className="text-white mb-4">{error}</p>
+              <button
+                onClick={() => {
+                  setError(null)
+                  if (isMobile) {
+                    startCamera()
+                  }
+                }}
+                className="bg-white text-gray-900 px-6 py-2 rounded font-medium hover:bg-gray-100 transition-all duration-200"
+              >
+                {isMobile ? 'Try Again' : 'Dismiss'}
+              </button>
             </div>
           </div>
         )}
-
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
-            <div className="text-5xl">⚠️</div>
-            <p className="text-white font-semibold">{error}</p>
-            <button
-              onClick={() => {
-                setError(null)
-                startCamera()
-              }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* QR Code Format Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>QR Code Format:</strong> Scan the QR code on the back of your conference badge. The system will automatically look up your contact information.
-        </p>
-      </div>
-
-      {/* Manual entry fallback */}
-      <div className="border-t pt-6">
-        <p className="text-sm text-gray-600 mb-4">
-          Or enter contact info manually:
-        </p>
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={manualName}
-            onChange={(e) => setManualName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={manualEmail}
-            onChange={(e) => setManualEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            type="text"
-            placeholder="Organization"
-            value={manualOrg}
-            onChange={(e) => setManualOrg(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={handleManualSubmit}
-            disabled={!manualEmail || !manualName || !manualOrg}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Continue
-          </button>
-        </div>
       </div>
     </div>
   )

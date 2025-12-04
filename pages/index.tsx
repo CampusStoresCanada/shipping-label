@@ -311,128 +311,192 @@ export default function Home() {
     setError(null)
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <StripeModeBadge />
-      <div className="max-w-4xl mx-auto">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            CSC Conference Shipping Station
-          </h1>
-          <p className="text-gray-600">
-            Sheraton Fallsview, Niagara Falls | Jan 26-29, 2026
-          </p>
-        </header>
+  // Check if a step can be navigated to
+  const canNavigateToStep = (targetStep: number): boolean => {
+    if (targetStep === 1) return false // Can't go back to scanner from steps
+    if (targetStep === 2) return !!shipmentData.address
+    if (targetStep === 3) return !!shipmentData.address
+    if (targetStep === 4) return !!shipmentData.box
+    if (targetStep === 5) return !!shipmentData.billing
+    return false
+  }
 
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          {/* Step indicator */}
-          {step < 6 && (
+  // Handle step navigation
+  const handleStepClick = (targetStep: number) => {
+    if (targetStep < step && canNavigateToStep(targetStep)) {
+      setStep(targetStep)
+      setError(null)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-white" style={{ fontFamily: '"Helvetica Neue", Arial, sans-serif' }}>
+      <StripeModeBadge />
+      {step === 1 ? (
+        <QRScanner key={shipmentCount} onScan={handleQRScan} />
+      ) : step === 6 && shipmentData.result ? (
+        <SuccessScreen
+          trackingNumber={shipmentData.result.trackingNumber}
+          labelUrl={shipmentData.result.labelUrl}
+          shipmentCount={shipmentCount}
+          onReset={handleReset}
+          shipmentId={shipmentData.result.shipmentId}
+          billingType={shipmentData.billing?.type}
+          estimatedCost={shipmentData.costEstimates?.[shipmentData.billing?.type || 'csc'] || undefined}
+        />
+      ) : (
+        <div className="h-screen flex">
+          {/* Sidebar */}
+          <div className="w-96 bg-gray-50 border-r border-gray-200 p-8 flex flex-col overflow-y-auto">
+            {/* Progress indicator */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <div key={num} className="flex items-center">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                        step >= num
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-200 text-gray-500'
-                      }`}
-                    >
-                      {num}
-                    </div>
-                    {num < 5 && (
+              <div className="flex items-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((num) => {
+                  const isClickable = num < step && canNavigateToStep(num)
+                  const isCurrent = num === step
+                  const isCompleted = num < step
+
+                  return (
+                    <div key={num} className="flex items-center flex-1">
                       <div
-                        className={`w-20 h-1 ${
-                          step > num ? 'bg-indigo-600' : 'bg-gray-200'
+                        onClick={() => handleStepClick(num)}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
+                          step >= num
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-200 text-gray-500'
+                        } ${
+                          isClickable
+                            ? 'cursor-pointer hover:ring-2 hover:ring-gray-900 hover:ring-offset-2'
+                            : isCurrent
+                            ? ''
+                            : 'cursor-not-allowed opacity-50'
                         }`}
-                      />
-                    )}
-                  </div>
-                ))}
+                        title={isClickable ? 'Go back to this step' : undefined}
+                      >
+                        {num}
+                      </div>
+                      {num < 5 && (
+                        <div
+                          className={`flex-1 h-1 mx-2 rounded transition-all duration-200 ${
+                            step > num ? 'bg-gray-900' : 'bg-gray-200'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-              <div className="text-center text-sm text-gray-600">
-                {step === 1 && 'Scan Badge'}
+              <h2 className="text-xl font-semibold text-gray-900">
                 {step === 2 && 'Shipping Address'}
                 {step === 3 && 'Box Details'}
                 {step === 4 && 'Billing Account'}
                 {step === 5 && 'Review & Confirm'}
+              </h2>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-base">
+                {error}
               </div>
+            )}
+
+            {/* Form Content */}
+            <div className="flex-1">
+              {step === 2 && shipmentData.address && (
+                <AddressForm
+                  initialAddress={shipmentData.address}
+                  onConfirm={handleAddressConfirm}
+                  onBack={handleBackToScanner}
+                />
+              )}
+
+              {step === 3 && (
+                <BoxSelector
+                  onContinue={handleBoxSelect}
+                  onBack={() => setStep(2)}
+                />
+              )}
+
+              {step === 4 && (
+                <AccountSelector
+                  cscAccount={CSC_ACCOUNT}
+                  organizationName={shipmentData.contact.organizationName}
+                  organizationAccount={shipmentData.organization?.purolator_account || null}
+                  onSelect={handleBillingSelect}
+                  costEstimates={shipmentData.costEstimates || undefined}
+                />
+              )}
+
+              {step === 5 && shipmentData.billing && shipmentData.address && shipmentData.box && (
+                <ReviewConfirm
+                  shipmentData={{
+                    contactName: shipmentData.contact.name,
+                    contactEmail: shipmentData.contact.email,
+                    organizationName: shipmentData.contact.organizationName,
+                    address: shipmentData.address,
+                    box: shipmentData.box,
+                    billing: shipmentData.billing,
+                    estimatedCost: shipmentData.billing.type === 'csc'
+                      ? shipmentData.costEstimates?.csc || undefined
+                      : shipmentData.costEstimates?.institution || undefined
+                  }}
+                  onConfirm={handleCreateShipment}
+                  onBack={() => setStep(4)}
+                  isCreating={isLoading}
+                />
+              )}
             </div>
-          )}
+          </div>
 
-          {/* Error Display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              {error}
-            </div>
-          )}
-
-          {/* Step Content */}
-          {step === 1 && (
-            <QRScanner key={shipmentCount} onScan={handleQRScan} />
-          )}
-
-          {step === 2 && shipmentData.address && (
-            <AddressForm
-              initialAddress={shipmentData.address}
-              onConfirm={handleAddressConfirm}
-              onBack={handleBackToScanner}
-            />
-          )}
-
-          {step === 3 && (
-            <BoxSelector
-              onContinue={handleBoxSelect}
-              onBack={() => setStep(2)}
-            />
-          )}
-
-          {step === 4 && (
-            <AccountSelector
-              cscAccount={CSC_ACCOUNT}
-              organizationName={shipmentData.contact.organizationName}
-              organizationAccount={shipmentData.organization?.purolator_account || null}
-              onSelect={handleBillingSelect}
-              costEstimates={shipmentData.costEstimates || undefined}
-            />
-          )}
-
-          {step === 5 && shipmentData.billing && shipmentData.address && shipmentData.box && (
-            <ReviewConfirm
-              shipmentData={{
-                contactName: shipmentData.contact.name,
-                contactEmail: shipmentData.contact.email,
-                organizationName: shipmentData.contact.organizationName,
-                address: shipmentData.address,
-                box: shipmentData.box,
-                billing: shipmentData.billing,
-                estimatedCost: shipmentData.billing.type === 'csc'
-                  ? shipmentData.costEstimates?.csc || undefined
-                  : shipmentData.costEstimates?.institution || undefined
-              }}
-              onConfirm={handleCreateShipment}
-              onBack={() => setStep(4)}
-              isCreating={isLoading}
-            />
-          )}
-
-          {step === 6 && shipmentData.result && (
-            <SuccessScreen
-              trackingNumber={shipmentData.result.trackingNumber}
-              labelUrl={shipmentData.result.labelUrl}
-              shipmentCount={shipmentCount}
-              onReset={handleReset}
-              shipmentId={shipmentData.result.shipmentId}
-              billingType={shipmentData.billing?.type}
-              estimatedCost={shipmentData.costEstimates?.[shipmentData.billing?.type || 'csc'] || undefined}
-            />
-          )}
+          {/* Content Area (replaces camera) */}
+          <div className="flex-1 bg-white flex items-center justify-center">
+            {step === 2 && shipmentData.address && (
+              <iframe
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps/embed/v1/place?key=${typeof window !== 'undefined' ? (window as any).__GOOGLE_MAPS_API_KEY__ : ''}&q=${encodeURIComponent(
+                  `${shipmentData.address.street}, ${shipmentData.address.city}, ${shipmentData.address.province} ${shipmentData.address.postalCode}, Canada`
+                )}&zoom=15`}
+              />
+            )}
+            {step === 3 && (
+              <div className="text-center p-12">
+                <div className="text-2xl font-semibold text-gray-900 mb-8">Package Info</div>
+                <div className="text-gray-400">
+                  <svg className="w-48 h-48 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+              </div>
+            )}
+            {step === 4 && (
+              <div className="text-center p-12">
+                <div className="text-2xl font-semibold text-gray-900 mb-8">Select Billing</div>
+                <div className="text-gray-400">
+                  <svg className="w-48 h-48 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+              </div>
+            )}
+            {step === 5 && (
+              <div className="text-center p-12">
+                <div className="text-2xl font-semibold text-gray-900 mb-8">Ready to Ship</div>
+                <div className="text-gray-400">
+                  <svg className="w-48 h-48 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-
-        <footer className="text-center mt-8 text-sm text-gray-600">
-          <p>Need help? Contact google@campusstores.ca</p>
-        </footer>
-      </div>
+      )}
     </div>
   )
 }
