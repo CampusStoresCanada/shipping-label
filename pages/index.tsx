@@ -482,9 +482,9 @@ export default function Home() {
                       </g>
                     </g>
 
-                    {/* Box (animated dropping) */}
-                    <g className="box-animation" transform="translate(55, 10)">
-                      <g transform="scale(0.45)">
+                    {/* Box (animated dropping and lifting) */}
+                    <g className="box-animation">
+                      <g transform="scale(0.65)">
                         <polygon points="2.5 86.89 50.46 110.37 98.96 86.89 98.96 27.09 50.73 3.27 2.5 27.09 2.5 86.89" fill="#fff"/>
                         <path d="M100.84,26.43c-.02-.07-.06-.13-.08-.2-.05-.14-.1-.28-.18-.4-.04-.07-.1-.14-.15-.21-.08-.11-.15-.21-.25-.31-.07-.07-.15-.12-.22-.18-.08-.06-.14-.13-.22-.18-.03-.02-.06-.02-.09-.04-.03-.02-.05-.04-.07-.05L51.6.28c-.72-.37-1.56-.37-2.28,0L1.36,24.86s-.05.04-.07.05c-.03.02-.06.02-.09.04-.08.05-.15.12-.22.18-.07.06-.15.11-.22.18-.09.09-.17.2-.25.31-.05.07-.11.13-.15.21-.07.13-.13.26-.18.4-.02.07-.06.13-.08.2-.06.21-.09.43-.09.66v59.11c0,.94.53,1.8,1.36,2.22l47.96,24.59c.1.05.2.08.3.11.07.03.14.06.21.08.19.05.39.08.58.08.01,0,.03,0,.04,0,.21,0,.42-.03.63-.09.07-.02.13-.05.19-.07.11-.04.22-.07.32-.12l47.96-24.59c.83-.43,1.36-1.29,1.36-2.22V27.09c0-.23-.03-.45-.09-.66ZM50.46,5.31l42.48,21.78-4.81,2.46-37.68,19.31L12.79,29.55l-4.81-2.46L50.46,5.31ZM47.96,106.7L5,84.67V31.18l42.96,22.02v53.49ZM95.93,84.67l-42.96,22.02v-53.49l42.96-22.02v53.49Z" fill="#9399a5"/>
                       </g>
@@ -493,31 +493,40 @@ export default function Home() {
 
                   <style jsx>{`
                     .box-animation {
-                      animation: dropBox 3s ease-in-out infinite;
+                      animation: dropAndLiftBox 4s ease-in-out infinite;
+                      transform-origin: 50% 50%;
                     }
                     .led-display {
-                      animation: blinkLED 1.5s ease-in-out infinite;
-                      animation-delay: 1.5s;
+                      animation: blinkLED 1s ease-in-out infinite;
+                      animation-delay: 1.2s;
                     }
-                    @keyframes dropBox {
+                    @keyframes dropAndLiftBox {
                       0% {
-                        transform: translate(55px, -50px);
+                        transform: translate(45px, -60px);
                         opacity: 0;
                       }
-                      20% {
+                      15% {
                         opacity: 1;
                       }
-                      40% {
-                        transform: translate(55px, 10px);
+                      25% {
+                        transform: translate(45px, 5px);
                       }
-                      45% {
-                        transform: translate(55px, 12px);
+                      30% {
+                        transform: translate(45px, 7px);
                       }
-                      50% {
-                        transform: translate(55px, 10px);
+                      35% {
+                        transform: translate(45px, 5px);
+                      }
+                      65% {
+                        transform: translate(45px, 5px);
+                      }
+                      80% {
+                        transform: translate(45px, -60px);
+                        opacity: 1;
                       }
                       100% {
-                        transform: translate(55px, 10px);
+                        transform: translate(45px, -60px);
+                        opacity: 0;
                       }
                     }
                     @keyframes blinkLED {
@@ -567,14 +576,14 @@ export default function Home() {
                       strokeDasharray="1000"
                       strokeDashoffset="1000"
                       style={{
-                        animation: 'drawLine 3s ease-in-out infinite',
+                        animation: 'drawLine 4s ease-in-out infinite',
                       }}
                     />
 
                     {/* Animated package icon */}
                     <g
                       style={{
-                        animation: 'movePackage 3s ease-in-out infinite',
+                        animation: 'movePackage 4s ease-in-out infinite',
                         transformOrigin: '200px 172px',
                       }}
                     >
@@ -585,21 +594,36 @@ export default function Home() {
 
                   <style jsx>{`
                     @keyframes drawLine {
-                      to {
+                      0% {
+                        stroke-dashoffset: 1000;
+                      }
+                      80% {
+                        stroke-dashoffset: 0;
+                      }
+                      100% {
                         stroke-dashoffset: 0;
                       }
                     }
                     @keyframes movePackage {
                       0% {
-                        transform: translate(0, 0);
+                        transform: translate(-115px, -50px);
                         opacity: 0;
                       }
                       10% {
+                        transform: translate(-115px, -25px);
                         opacity: 1;
                       }
-                      100% {
-                        transform: translate(240px, 10px);
+                      70% {
+                        transform: translate(125px, -15px);
                         opacity: 1;
+                      }
+                      85% {
+                        transform: translate(125px, -40px);
+                        opacity: 0;
+                      }
+                      100% {
+                        transform: translate(125px, -40px);
+                        opacity: 0;
                       }
                     }
                   `}</style>
