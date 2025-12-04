@@ -567,33 +567,20 @@ export default function Home() {
                       strokeDasharray="1000"
                       strokeDashoffset="1000"
                       style={{
-                        animation: 'drawLine 2s ease-in-out forwards',
+                        animation: 'drawLine 3s ease-in-out infinite',
                       }}
                     />
 
                     {/* Animated package icon */}
                     <g
                       style={{
-                        animation: 'movePackage 2s ease-in-out forwards',
+                        animation: 'movePackage 3s ease-in-out infinite',
                         transformOrigin: '200px 172px',
                       }}
                     >
                       <rect x="195" y="167" width="10" height="10" fill="none" stroke="#111827" strokeWidth="1.5" />
                       <path d="M195 172 L205 172 M200 167 L200 177" stroke="#111827" strokeWidth="1.5" />
                     </g>
-
-                    {/* Cost estimate */}
-                    {shipmentData.costEstimates && (
-                      <g>
-                        <rect x="150" y="280" width="100" height="50" rx="8" fill="#f9fafb" stroke="#e5e7eb" strokeWidth="2" />
-                        <text x="200" y="300" textAnchor="middle" className="text-xs" fill="#6b7280">
-                          Estimated Cost
-                        </text>
-                        <text x="200" y="320" textAnchor="middle" className="text-xl font-semibold" fill="#111827">
-                          ${((shipmentData.costEstimates.csc || shipmentData.costEstimates.institution || 0) / 100).toFixed(2)}
-                        </text>
-                      </g>
-                    )}
                   </svg>
 
                   <style jsx>{`
