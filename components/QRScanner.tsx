@@ -205,18 +205,21 @@ export default function QRScanner({ onScan }: QRScannerProps) {
         )}
 
         {isCameraActive && (
-          <>
+          <div className="absolute inset-0 flex flex-col">
             <video
               ref={videoRef}
-              className="w-full h-auto"
               playsInline
               muted
               autoPlay
               style={{
-                display: 'block',
-                minHeight: '400px',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
                 backgroundColor: '#1f2937',
-                width: '100%'
+                zIndex: 1
               }}
             />
             <canvas
@@ -225,18 +228,26 @@ export default function QRScanner({ onScan }: QRScannerProps) {
             />
 
             {/* Scanning indicator */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
+            <div style={{ position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
               Scanning for QR Code...
             </div>
 
             {/* Stop button */}
             <button
               onClick={stopCamera}
-              className="absolute bottom-4 right-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
+              style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 10 }}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
             >
               Stop Camera
             </button>
-          </>
+
+            {/* Debug info */}
+            <div style={{ position: 'absolute', bottom: '16px', left: '16px', zIndex: 10 }} className="bg-black bg-opacity-75 text-white text-xs p-2 rounded font-mono">
+              Stream active: {streamRef.current ? 'YES' : 'NO'}<br/>
+              Video ref: {videoRef.current ? 'YES' : 'NO'}<br/>
+              Tracks: {streamRef.current?.getVideoTracks().length || 0}
+            </div>
+          </div>
         )}
 
         {error && (
