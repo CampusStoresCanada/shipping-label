@@ -502,22 +502,22 @@ export default function Home() {
                     }
                     @keyframes dropAndLiftBox {
                       0%, 15% {
-                        transform: translate(45px, -35px);
+                        transform: translate(55px, -35px);
                       }
                       30% {
-                        transform: translate(45px, 32px);
+                        transform: translate(55px, 45px);
                       }
                       35% {
-                        transform: translate(45px, 34px);
+                        transform: translate(55px, 47px);
                       }
                       40% {
-                        transform: translate(45px, 32px);
+                        transform: translate(55px, 45px);
                       }
                       70% {
-                        transform: translate(45px, 32px);
+                        transform: translate(55px, 45px);
                       }
                       85%, 100% {
-                        transform: translate(45px, -35px);
+                        transform: translate(55px, -35px);
                       }
                     }
                     @keyframes blinkLED {
