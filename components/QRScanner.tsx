@@ -75,17 +75,26 @@ export default function QRScanner({ onScan }: QRScannerProps) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream
 
-        // Wait for video to be ready before playing
-        await videoRef.current.play()
-        console.log('✅ Video playing')
+        // Start scanning after video is ready
+        videoRef.current.onloadedmetadata = () => {
+          console.log('✅ Video metadata loaded')
+          console.log('   Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)
+          console.log('   Video element dimensions:', videoRef.current?.offsetWidth, 'x', videoRef.current?.offsetHeight)
+          scanQRCode()
+        }
 
+        // Set camera active BEFORE playing
         setIsCameraActive(true)
         setScanning(false)
 
-        // Start scanning after video is ready
-        videoRef.current.onloadedmetadata = () => {
-          console.log('✅ Video metadata loaded, starting QR scan loop')
-          scanQRCode()
+        // Wait for video to be ready before playing
+        try {
+          await videoRef.current.play()
+          console.log('✅ Video.play() succeeded')
+          console.log('   Video paused?', videoRef.current.paused)
+          console.log('   Video readyState:', videoRef.current.readyState)
+        } catch (playErr) {
+          console.error('❌ Video.play() failed:', playErr)
         }
       }
     } catch (err: any) {
@@ -203,7 +212,12 @@ export default function QRScanner({ onScan }: QRScannerProps) {
               playsInline
               muted
               autoPlay
-              style={{ display: 'block', minHeight: '400px' }}
+              style={{
+                display: 'block',
+                minHeight: '400px',
+                backgroundColor: '#1f2937',
+                width: '100%'
+              }}
             />
             <canvas
               ref={canvasRef}
