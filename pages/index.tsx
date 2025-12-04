@@ -505,16 +505,16 @@ export default function Home() {
                         transform: translate(55px, -35px);
                       }
                       30% {
-                        transform: translate(55px, 45px);
+                        transform: translate(55px, 65px);
                       }
                       35% {
-                        transform: translate(55px, 47px);
+                        transform: translate(55px, 67px);
                       }
                       40% {
-                        transform: translate(55px, 45px);
+                        transform: translate(55px, 65px);
                       }
                       70% {
-                        transform: translate(55px, 45px);
+                        transform: translate(55px, 65px);
                       }
                       85%, 100% {
                         transform: translate(55px, -35px);
