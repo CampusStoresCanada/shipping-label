@@ -476,11 +476,88 @@ export default function Home() {
             )}
             {step === 4 && (
               <div className="text-center p-12">
-                <div className="text-2xl font-semibold text-gray-900 mb-8">Select Billing</div>
-                <div className="text-gray-400">
-                  <svg className="w-48 h-48 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                <div className="text-2xl font-semibold text-gray-900 mb-8">Shipping Route</div>
+                <div className="relative">
+                  <svg className="w-96 h-96 mx-auto" viewBox="0 0 400 400" fill="none">
+                    {/* Simplified map outline */}
+                    <path
+                      d="M50 200 Q100 180 150 190 T250 210 T350 200"
+                      stroke="#e5e7eb"
+                      strokeWidth="2"
+                      fill="none"
+                    />
+
+                    {/* Origin point (Niagara Falls) */}
+                    <circle cx="80" cy="195" r="8" fill="#374151" />
+                    <text x="80" y="230" textAnchor="middle" className="text-sm font-medium" fill="#374151">
+                      Niagara Falls
+                    </text>
+
+                    {/* Destination point */}
+                    <circle cx="320" cy="205" r="8" fill="#374151" />
+                    <text x="320" y="240" textAnchor="middle" className="text-sm font-medium" fill="#374151">
+                      {shipmentData.address?.city || 'Destination'}
+                    </text>
+
+                    {/* Animated route line */}
+                    <path
+                      d="M80 195 Q200 150 320 205"
+                      stroke="#111827"
+                      strokeWidth="3"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray="1000"
+                      strokeDashoffset="1000"
+                      style={{
+                        animation: 'drawLine 2s ease-in-out forwards',
+                      }}
+                    />
+
+                    {/* Animated package icon */}
+                    <g
+                      style={{
+                        animation: 'movePackage 2s ease-in-out forwards',
+                        transformOrigin: '200px 172px',
+                      }}
+                    >
+                      <rect x="195" y="167" width="10" height="10" fill="none" stroke="#111827" strokeWidth="1.5" />
+                      <path d="M195 172 L205 172 M200 167 L200 177" stroke="#111827" strokeWidth="1.5" />
+                    </g>
+
+                    {/* Cost estimate */}
+                    {shipmentData.costEstimates && (
+                      <g>
+                        <rect x="150" y="280" width="100" height="50" rx="8" fill="#f9fafb" stroke="#e5e7eb" strokeWidth="2" />
+                        <text x="200" y="300" textAnchor="middle" className="text-xs" fill="#6b7280">
+                          Estimated Cost
+                        </text>
+                        <text x="200" y="320" textAnchor="middle" className="text-xl font-semibold" fill="#111827">
+                          ${((shipmentData.costEstimates.csc || shipmentData.costEstimates.institution || 0) / 100).toFixed(2)}
+                        </text>
+                      </g>
+                    )}
                   </svg>
+
+                  <style jsx>{`
+                    @keyframes drawLine {
+                      to {
+                        stroke-dashoffset: 0;
+                      }
+                    }
+                    @keyframes movePackage {
+                      0% {
+                        transform: translate(0, 0);
+                        opacity: 0;
+                      }
+                      10% {
+                        opacity: 1;
+                      }
+                      100% {
+                        transform: translate(240px, 10px);
+                        opacity: 1;
+                      }
+                    }
+                  `}</style>
                 </div>
               </div>
             )}
