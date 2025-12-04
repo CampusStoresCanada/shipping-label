@@ -345,9 +345,9 @@ export default function Home() {
           estimatedCost={shipmentData.costEstimates?.[shipmentData.billing?.type || 'csc'] || undefined}
         />
       ) : (
-        <div className="h-screen flex">
+        <div className="h-screen flex flex-col md:flex-row">
           {/* Sidebar */}
-          <div className="w-96 bg-gray-50 border-r border-gray-200 p-8 flex flex-col overflow-y-auto">
+          <div className="w-full md:w-96 bg-gray-50 border-r border-gray-200 p-8 flex flex-col overflow-y-auto">
             {/* Progress indicator */}
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-6">
@@ -449,8 +449,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Content Area (replaces camera) */}
-          <div className="flex-1 bg-white flex items-center justify-center">
+          {/* Content Area (replaces camera) - Hidden on mobile */}
+          <div className="hidden md:flex flex-1 bg-white items-center justify-center">
             {step === 2 && shipmentData.address && (
               <iframe
                 width="100%"
