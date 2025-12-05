@@ -18,6 +18,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debug environment variables
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_ORGANIZATIONS_DB: ${{ secrets.NOTION_ORGANIZATIONS_DB }}
+          NOTION_CONTACTS_DB: ${{ secrets.NOTION_CONTACTS_DB }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Checking if environment variables are set..."
+          [ -z "$NOTION_API_KEY" ] && echo "❌ NOTION_API_KEY is empty" || echo "✅ NOTION_API_KEY is set"
+          [ -z "$NOTION_ORGANIZATIONS_DB" ] && echo "❌ NOTION_ORGANIZATIONS_DB is empty" || echo "✅ NOTION_ORGANIZATIONS_DB is set"
+          [ -z "$NOTION_CONTACTS_DB" ] && echo "❌ NOTION_CONTACTS_DB is empty" || echo "✅ NOTION_CONTACTS_DB is set"
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && echo "❌ NEXT_PUBLIC_SUPABASE_URL is empty" || echo "✅ NEXT_PUBLIC_SUPABASE_URL is set"
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && echo "❌ SUPABASE_SERVICE_ROLE_KEY is empty" || echo "✅ SUPABASE_SERVICE_ROLE_KEY is set"
+
       - name: Run sync
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
