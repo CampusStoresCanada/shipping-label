@@ -25,5 +25,4 @@ jobs:
           NOTION_CONTACTS_DB: ${{ secrets.NOTION_CONTACTS_DB }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TENANT_ID: ${{ secrets.TENANT_ID }}
         run: npx tsx scripts/sync-notion-manual.ts
