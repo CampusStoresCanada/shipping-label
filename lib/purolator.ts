@@ -13,11 +13,12 @@ const PUROLATOR_CONFIG = {
     pickupEndpoint: 'https://devwebservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
   },
   production: {
-    estimatingUrl: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx?wsdl',
+    estimatingUrl: path.join(process.cwd(), 'EstimatingService.wsdl'),
     estimatingEndpoint: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
-    shippingUrl: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
+    shippingUrl: path.join(process.cwd(), 'ShippingService.wsdl'),
+    shippingEndpoint: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
     trackingUrl: 'https://webservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
-    pickupUrl: 'https://webservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx?wsdl',
+    pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Production', 'PickUpService.wsdl'),
     pickupEndpoint: 'https://webservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
   }
 }
@@ -356,7 +357,7 @@ export async function createShipment(
   rawResponse: any
 }> {
   try {
-    const client = await createSoapClient(config.shippingUrl)
+    const client = await createSoapClient(config.shippingUrl, (config as any).shippingEndpoint)
 
     const shipmentDate = new Date().toISOString().split('T')[0]
 
