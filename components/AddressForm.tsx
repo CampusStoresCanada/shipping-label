@@ -13,6 +13,12 @@ type AddressFormProps = {
     province: string
     postalCode: string
   }) => void
+  onAddressChange?: (address: {
+    street: string
+    city: string
+    province: string
+    postalCode: string
+  }) => void
   onBack: () => void
 }
 
@@ -26,6 +32,7 @@ declare global {
 export default function AddressForm({
   initialAddress,
   onConfirm,
+  onAddressChange,
   onBack
 }: AddressFormProps) {
   const [address, setAddress] = useState(initialAddress)
@@ -97,13 +104,19 @@ export default function AddressForm({
         }
       })
 
-      setAddress({
+      const newAddress = {
         street: street.trim(),
         city,
         province,
         postalCode
-      })
+      }
+      setAddress(newAddress)
       setIsEditing(false)
+
+      // Notify parent of address change for map update
+      if (onAddressChange) {
+        onAddressChange(newAddress)
+      }
     })
 
     autocompleteRef.current = autocomplete

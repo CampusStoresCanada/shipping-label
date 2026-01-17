@@ -131,6 +131,14 @@ export default function Home() {
     setStep(3)
   }
 
+  // Handle address change (for live map updates)
+  const handleAddressChange = (address: { street: string; city: string; province: string; postalCode: string }) => {
+    setShipmentData({
+      ...shipmentData,
+      address
+    })
+  }
+
   // Step 3: Handle box selection and get cost estimates
   const handleBoxSelect = async (box: { type: 'standard' | 'custom'; length: number; width: number; height: number; weight: number }) => {
     setShipmentData({
@@ -409,6 +417,7 @@ export default function Home() {
                 <AddressForm
                   initialAddress={shipmentData.address}
                   onConfirm={handleAddressConfirm}
+                  onAddressChange={handleAddressChange}
                   onBack={handleBackToScanner}
                 />
               )}
