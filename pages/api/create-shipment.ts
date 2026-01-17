@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Shipment } from '@/lib/supabase'
 import { createShipment as createPurolatorShipment, CONFERENCE_ADDRESS } from '@/lib/purolator'
 import { sendShipmentNotification, sendTrackingEmail } from '@/lib/email'
+import { createShipmentInvoice } from '@/lib/stripe'
 
 type ShipmentRequest = {
   contact_id: string | null
@@ -161,6 +162,43 @@ export default async function handler(
         success: false,
         error: 'Failed to save shipment'
       })
+    }
+
+    // Create Stripe invoice if billing type is CSC
+    let stripeInvoiceId: string | null = null
+    let stripeInvoiceUrl: string | null = null
+
+    if (shipmentData.billing_type === 'csc' && estimatedCost > 0) {
+      try {
+        console.log('💳 Creating Stripe invoice for CSC-billed shipment...')
+        const invoice = await createShipmentInvoice({
+          shipmentId: data.id,
+          trackingNumber,
+          contactEmail: shipmentData.contact_email,
+          contactName: shipmentData.contact_name,
+          organizationName: shipmentData.organization_name,
+          shippingCost: estimatedCost,
+          destinationAddress: `${shipmentData.destination_street}, ${shipmentData.destination_city}, ${shipmentData.destination_province}`
+        })
+
+        stripeInvoiceId = invoice.invoiceId
+        stripeInvoiceUrl = invoice.invoiceUrl
+
+        // Update shipment with Stripe invoice details
+        await supabase
+          .from('shipments')
+          .update({
+            stripe_invoice_id: stripeInvoiceId,
+            stripe_invoice_url: stripeInvoiceUrl,
+            payment_status: 'pending'
+          })
+          .eq('id', data.id)
+
+        console.log(`✅ Stripe invoice created: ${stripeInvoiceId}`)
+      } catch (stripeError) {
+        // Log error but don't fail the shipment
+        console.error('⚠️  Failed to create Stripe invoice:', stripeError)
+      }
     }
 
     // Send email notifications

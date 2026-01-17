@@ -9,12 +9,16 @@ const PUROLATOR_CONFIG = {
     estimatingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
     shippingUrl: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
     trackingUrl: 'https://devwebservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
+    pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Development', 'PickUpService.wsdl'),
+    pickupEndpoint: 'https://devwebservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
   },
   production: {
     estimatingUrl: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx?wsdl',
     estimatingEndpoint: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
     shippingUrl: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
     trackingUrl: 'https://webservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
+    pickupUrl: 'https://webservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx?wsdl',
+    pickupEndpoint: 'https://webservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
   }
 }
 
@@ -54,15 +58,18 @@ interface ShipmentOptions {
 }
 
 // Helper to create SOAP security header
-function createSecurityHeader() {
+function createSecurityHeader(version: 'v1' | 'v2' = 'v2') {
   // Use raw XML to ensure proper namespace handling
+  const namespace = version === 'v1' ? 'http://purolator.com/pws/datatypes/v1' : 'http://purolator.com/pws/datatypes/v2'
+  const versionNumber = version === 'v1' ? '1.2' : '2.0'
+
   return {
-    $xml: '<RequestContext xmlns="http://purolator.com/pws/datatypes/v2"><Version>2.0</Version><Language>en</Language><GroupID>xxx</GroupID><RequestReference>Rating Example</RequestReference><UserToken>' + credentials.key + '</UserToken></RequestContext>'
+    $xml: `<RequestContext xmlns="${namespace}"><Version>${versionNumber}</Version><Language>en</Language><GroupID>xxx</GroupID><RequestReference>Rating Example</RequestReference><UserToken>${credentials.key}</UserToken></RequestContext>`
   }
 }
 
 // Helper to create SOAP client with authentication
-async function createSoapClient(wsdlUrl: string, endpoint?: string): Promise<soap.Client> {
+async function createSoapClient(wsdlUrl: string, endpoint?: string, version: 'v1' | 'v2' = 'v2'): Promise<soap.Client> {
   return new Promise((resolve, reject) => {
     // Create Basic Auth header for WSDL fetch
     const authHeader = 'Basic ' + Buffer.from(`${credentials.key}:${credentials.password}`).toString('base64')
@@ -94,8 +101,8 @@ async function createSoapClient(wsdlUrl: string, endpoint?: string): Promise<soa
       // Set basic authentication for SOAP requests
       client.setSecurity(new soap.BasicAuthSecurity(credentials.key, credentials.password))
 
-      // Add request header
-      client.addSoapHeader(createSecurityHeader())
+      // Add request header with correct version
+      client.addSoapHeader(createSecurityHeader(version))
 
       resolve(client)
     })
@@ -405,6 +412,8 @@ export async function createShipment(
         },
         PickupInformation: {
           PickupType: 'PreScheduled',
+          // All shipments reference the conference pickup on Friday, Jan 30, 2026
+          // The actual pickup is scheduled separately via /api/schedule-pickup
         },
         NotificationInformation: {
           ConfirmationEmail: receiverInfo.email,
@@ -511,6 +520,151 @@ export async function validateAddress(address: Address): Promise<any> {
     return { valid: true, suggestions: [] }
   } catch (error) {
     console.error('❌ Error in validateAddress:', error)
+    throw error
+  }
+}
+
+// Schedule a pickup
+export async function schedulePickup(params: {
+  billingAccount: string
+  pickupDate: string // YYYY-MM-DD
+  readyTime: string // HH:MM (24hr)
+  untilTime: string // HH:MM (24hr)
+  totalPieces: number
+  totalWeight: number // in lbs
+  pickupLocation?: string
+  additionalInstructions?: string
+  loadingDockAvailable?: boolean
+}): Promise<{
+  pickupConfirmationNumber: string
+  rawResponse: any
+}> {
+  try {
+    const client = await createSoapClient(config.pickupUrl, config.pickupEndpoint, 'v1')
+
+    const request = {
+      BillingAccountNumber: params.billingAccount,
+      PickupInstruction: {
+        Date: params.pickupDate,
+        AnyTimeAfter: params.readyTime,
+        UntilTime: params.untilTime,
+        TotalWeight: {
+          Value: params.totalWeight.toString(),
+          WeightUnit: 'lb',
+        },
+        TotalPieces: params.totalPieces,
+        PickUpLocation: params.pickupLocation || 'Reception',
+        AdditionalInstructions: params.additionalInstructions || '',
+        LoadingDockAvailable: params.loadingDockAvailable || false,
+        TrailerAccessible: false,
+        ShipmentOnSkids: false,
+      },
+      Address: {
+        Name: 'Campus Stores Canada',
+        Company: 'Campus Stores Canada',
+        Department: '',
+        StreetNumber: '5875',
+        StreetName: 'Falls Avenue',
+        StreetAddress: '5875 Falls Avenue',
+        City: CONFERENCE_ADDRESS.city,
+        Province: normalizeProvince(CONFERENCE_ADDRESS.province),
+        Country: 'CA',
+        PostalCode: formatPostalCode(CONFERENCE_ADDRESS.postalCode),
+        PhoneNumber: {
+          CountryCode: '1',
+          AreaCode: '905',
+          Phone: '3581430',
+        },
+        PhoneExtension: '',
+        Email: 'info@campusstores.ca',
+      },
+    }
+
+    console.log('🚀 Purolator Schedule Pickup Request:', JSON.stringify(request, null, 2))
+
+    return new Promise((resolve, reject) => {
+      client.SchedulePickUp(request, (err: any, result: any) => {
+        if (err) {
+          console.error('❌ Purolator Pickup Scheduling Error:', err)
+          reject(err)
+          return
+        }
+
+        console.log('✅ Purolator Pickup Response:', JSON.stringify(result, null, 2))
+
+        try {
+          const confirmationNumber = result?.PickUpConfirmationNumber
+
+          if (!confirmationNumber) {
+            reject(new Error('No pickup confirmation number received from Purolator'))
+            return
+          }
+
+          resolve({
+            pickupConfirmationNumber: confirmationNumber,
+            rawResponse: result,
+          })
+        } catch (parseError) {
+          console.error('❌ Error parsing Purolator pickup response:', parseError)
+          reject(parseError)
+        }
+      })
+    })
+  } catch (error) {
+    console.error('❌ Error in schedulePickup:', error)
+    throw error
+  }
+}
+
+// Validate pickup before scheduling
+export async function validatePickup(params: {
+  billingAccount: string
+  pickupDate: string
+  readyTime: string
+  untilTime: string
+  totalPieces: number
+  totalWeight: number
+}): Promise<any> {
+  try {
+    const client = await createSoapClient(config.pickupUrl, config.pickupEndpoint, 'v1')
+
+    const request = {
+      BillingAccountNumber: params.billingAccount,
+      PickupInstruction: {
+        Date: params.pickupDate,
+        AnyTimeAfter: params.readyTime,
+        UntilTime: params.untilTime,
+        TotalWeight: {
+          Value: params.totalWeight.toString(),
+          WeightUnit: 'lb',
+        },
+        TotalPieces: params.totalPieces,
+      },
+      Address: {
+        Name: 'Campus Stores Canada',
+        City: CONFERENCE_ADDRESS.city,
+        Province: normalizeProvince(CONFERENCE_ADDRESS.province),
+        Country: 'CA',
+        PostalCode: formatPostalCode(CONFERENCE_ADDRESS.postalCode),
+      },
+    }
+
+    console.log('🚀 Purolator Validate Pickup Request:', JSON.stringify(request, null, 2))
+
+    return new Promise((resolve, reject) => {
+      client.ValidatePickUp(request, (err: any, result: any) => {
+        if (err) {
+          console.error('❌ Purolator Pickup Validation Error:', err)
+          reject(err)
+          return
+        }
+
+        console.log('✅ Purolator Pickup Validation Response:', JSON.stringify(result, null, 2))
+        resolve(result)
+      })
+    })
+  } catch (error) {
+    console.error('❌ Error in validatePickup:', error)
     throw error
   }
 }
