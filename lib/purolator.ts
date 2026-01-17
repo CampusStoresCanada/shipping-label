@@ -361,18 +361,26 @@ export async function createShipment(
 
     const shipmentDate = new Date().toISOString().split('T')[0]
 
+    // Parse both sender and receiver street addresses
+    const senderParsed = parseStreetAddress(from.street || CONFERENCE_ADDRESS.street || '6650 Fallsview Blvd')
+    const receiverParsed = parseStreetAddress(to.street || '')
+
+    console.log('🏠 Parsed Addresses:')
+    console.log('  Sender:', senderParsed)
+    console.log('  Receiver:', receiverParsed)
+
     const request = {
       Shipment: {
         SenderInformation: {
           Address: {
             Name: 'Campus Stores Canada',
             Company: 'Campus Stores Canada',
-            StreetNumber: '6650',
-            StreetName: 'Fallsview Blvd',
-            City: from.city,
-            Province: normalizeProvince(from.province),
+            StreetNumber: senderParsed.streetNumber,
+            StreetName: senderParsed.streetName,
+            City: from.city || CONFERENCE_ADDRESS.city,
+            Province: normalizeProvince(from.province || CONFERENCE_ADDRESS.province),
             Country: from.country || 'CA',
-            PostalCode: formatPostalCode(from.postalCode),
+            PostalCode: formatPostalCode(from.postalCode || CONFERENCE_ADDRESS.postalCode),
             PhoneNumber: {
               CountryCode: '1',
               AreaCode: '905',
@@ -382,25 +390,22 @@ export async function createShipment(
           TaxNumber: options.senderAccount || options.billingAccount,
         },
         ReceiverInformation: {
-          Address: (() => {
-            const parsed = parseStreetAddress(to.street || '')
-            return {
-              Name: receiverInfo.name,
-              Company: receiverInfo.organization || receiverInfo.name,
-              StreetNumber: parsed.streetNumber,
-              StreetName: parsed.streetName,
-              City: to.city,
-              Province: normalizeProvince(to.province),
-              Country: to.country || 'CA',
-              PostalCode: formatPostalCode(to.postalCode),
-              PhoneNumber: {
-                CountryCode: '1',
-                AreaCode: receiverInfo.phone?.substring(0, 3) || '000',
-                Phone: receiverInfo.phone?.substring(3) || '0000000',
-              },
-              Email: receiverInfo.email,
-            }
-          })(),
+          Address: {
+            Name: receiverInfo.name,
+            Company: receiverInfo.organization || receiverInfo.name,
+            StreetNumber: receiverParsed.streetNumber,
+            StreetName: receiverParsed.streetName,
+            City: to.city,
+            Province: normalizeProvince(to.province),
+            Country: to.country || 'CA',
+            PostalCode: formatPostalCode(to.postalCode),
+            PhoneNumber: {
+              CountryCode: '1',
+              AreaCode: receiverInfo.phone?.substring(0, 3) || '000',
+              Phone: receiverInfo.phone?.substring(3) || '0000000',
+            },
+            Email: receiverInfo.email,
+          },
         },
         PackageInformation: {
           ServiceID: 'PurolatorGround',
