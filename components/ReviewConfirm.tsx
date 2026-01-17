@@ -5,6 +5,7 @@ type ReviewConfirmProps = {
   shipmentData: {
     contactName: string
     contactEmail: string
+    contactPhone: string
     organizationName: string
     address: {
       street: string
@@ -25,6 +26,7 @@ type ReviewConfirmProps = {
     }
     estimatedCost?: number
   }
+  onPhoneChange: (phone: string) => void
   onConfirm: () => void
   onBack: () => void
   isCreating: boolean
@@ -32,13 +34,38 @@ type ReviewConfirmProps = {
 
 export default function ReviewConfirm({
   shipmentData,
+  onPhoneChange,
   onConfirm,
   onBack,
   isCreating
 }: ReviewConfirmProps) {
   const [confirmed, setConfirmed] = useState(false)
+  const [phoneError, setPhoneError] = useState('')
 
-  const { contactName, contactEmail, organizationName, address, box, billing, estimatedCost } = shipmentData
+  const { contactName, contactEmail, contactPhone, organizationName, address, box, billing, estimatedCost } = shipmentData
+
+  // Format phone number as user types (e.g., 123-456-7890)
+  const handlePhoneChange = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '')
+
+    // Validate phone number (10 digits)
+    if (digits.length > 0 && digits.length !== 10) {
+      setPhoneError('Phone number must be 10 digits')
+    } else {
+      setPhoneError('')
+    }
+
+    // Format as XXX-XXX-XXXX
+    let formatted = digits
+    if (digits.length > 6) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`
+    } else if (digits.length > 3) {
+      formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`
+    }
+
+    onPhoneChange(formatted)
+  }
 
   return (
     <div className="space-y-6">
@@ -69,10 +96,36 @@ export default function ReviewConfirm({
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
             To
           </h3>
-          <div className="text-gray-900">
+          <div className="text-gray-900 space-y-2">
             <div className="font-medium">{contactName}</div>
             <div className="text-sm">{contactEmail}</div>
             <div className="text-sm">{organizationName}</div>
+
+            {/* Phone Number - Editable */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                placeholder="123-456-7890"
+                maxLength={12}
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+                  phoneError
+                    ? 'border-red-300 focus:ring-red-500'
+                    : 'border-gray-300 focus:ring-indigo-500'
+                }`}
+              />
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
+              {!contactPhone && (
+                <p className="mt-1 text-xs text-amber-600">⚠️ Required for Purolator shipping</p>
+              )}
+            </div>
+
             <div className="text-sm mt-2">{address.street}</div>
             <div className="text-sm">
               {address.city}, {address.province} {address.postalCode}
@@ -137,7 +190,7 @@ export default function ReviewConfirm({
         </button>
         <button
           onClick={onConfirm}
-          disabled={!confirmed || isCreating}
+          disabled={!confirmed || isCreating || !!phoneError || !contactPhone}
           className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isCreating ? (

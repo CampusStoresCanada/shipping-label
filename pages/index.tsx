@@ -14,6 +14,7 @@ type ShipmentData = {
     id: string | null
     name: string
     email: string
+    phone: string
     organizationId: string | null
     organizationName: string
   }
@@ -51,7 +52,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shipmentData, setShipmentData] = useState<ShipmentData>({
-    contact: { id: null, name: '', email: '', organizationId: null, organizationName: '' },
+    contact: { id: null, name: '', email: '', phone: '', organizationId: null, organizationName: '' },
     organization: null,
     billing: null,
     address: null,
@@ -87,6 +88,7 @@ export default function Home() {
             id: data.contact.id,
             name: data.contact.name,
             email: data.contact.email,
+            phone: data.contact.phone || '',
             organizationId: org?.id || null,
             organizationName: org?.name || organization
           },
@@ -106,6 +108,7 @@ export default function Home() {
             id: null,
             name,
             email,
+            phone: '',
             organizationId: null,
             organizationName: organization
           },
@@ -249,6 +252,7 @@ export default function Home() {
           organization_id: shipmentData.contact.organizationId,
           contact_name: shipmentData.contact.name,
           contact_email: shipmentData.contact.email,
+          contact_phone: shipmentData.contact.phone,
           organization_name: shipmentData.contact.organizationName,
           destination_street: shipmentData.address.street,
           destination_city: shipmentData.address.city,
@@ -308,7 +312,7 @@ export default function Home() {
   const handleBackToScanner = () => {
     setStep(1)
     setShipmentData({
-      contact: { id: null, name: '', email: '', organizationId: null, organizationName: '' },
+      contact: { id: null, name: '', email: '', phone: '', organizationId: null, organizationName: '' },
       organization: null,
       billing: null,
       address: null,
@@ -445,6 +449,7 @@ export default function Home() {
                   shipmentData={{
                     contactName: shipmentData.contact.name,
                     contactEmail: shipmentData.contact.email,
+                    contactPhone: shipmentData.contact.phone,
                     organizationName: shipmentData.contact.organizationName,
                     address: shipmentData.address,
                     box: shipmentData.box,
@@ -453,6 +458,10 @@ export default function Home() {
                       ? shipmentData.costEstimates?.csc || undefined
                       : shipmentData.costEstimates?.institution || undefined
                   }}
+                  onPhoneChange={(phone) => setShipmentData({
+                    ...shipmentData,
+                    contact: { ...shipmentData.contact, phone }
+                  })}
                   onConfirm={handleCreateShipment}
                   onBack={() => setStep(4)}
                   isCreating={isLoading}

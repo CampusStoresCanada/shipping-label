@@ -61,6 +61,27 @@ function parseStreetAddress(fullAddress: string): { streetNumber: string; street
   }
 }
 
+// Parse phone number into components (remove dashes, spaces, etc.)
+function parsePhoneNumber(phone: string | undefined): { areaCode: string; phone: string } {
+  if (!phone) {
+    return { areaCode: '000', phone: '0000000' }
+  }
+
+  // Remove all non-digits
+  const digits = phone.replace(/\D/g, '')
+
+  // Validate we have 10 digits
+  if (digits.length === 10) {
+    return {
+      areaCode: digits.substring(0, 3),
+      phone: digits.substring(3)
+    }
+  }
+
+  // Fallback if invalid
+  return { areaCode: '000', phone: '0000000' }
+}
+
 interface Address {
   street?: string
   city: string
@@ -364,10 +385,12 @@ export async function createShipment(
     // Parse both sender and receiver street addresses
     const senderParsed = parseStreetAddress(from.street || CONFERENCE_ADDRESS.street || '6650 Fallsview Blvd')
     const receiverParsed = parseStreetAddress(to.street || '')
+    const receiverPhone = parsePhoneNumber(receiverInfo.phone)
 
     console.log('🏠 Parsed Addresses:')
     console.log('  Sender:', senderParsed)
     console.log('  Receiver:', receiverParsed)
+    console.log('📞 Parsed Phone:', receiverPhone)
 
     const request = {
       Shipment: {
@@ -401,8 +424,8 @@ export async function createShipment(
             PostalCode: formatPostalCode(to.postalCode),
             PhoneNumber: {
               CountryCode: '1',
-              AreaCode: receiverInfo.phone?.substring(0, 3) || '000',
-              Phone: receiverInfo.phone?.substring(3) || '0000000',
+              AreaCode: receiverPhone.areaCode,
+              Phone: receiverPhone.phone,
             },
             Email: receiverInfo.email,
           },
