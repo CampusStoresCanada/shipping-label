@@ -125,8 +125,8 @@ export async function createShipmentInvoice(params: {
 
     return {
       invoiceId: finalizedInvoice.id,
-      invoiceUrl: finalizedInvoice.hosted_invoice_url,
-      invoicePdfUrl: finalizedInvoice.invoice_pdf
+      invoiceUrl: finalizedInvoice.hosted_invoice_url || null,
+      invoicePdfUrl: finalizedInvoice.invoice_pdf || null
     }
 
   } catch (error: any) {
