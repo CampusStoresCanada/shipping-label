@@ -254,7 +254,7 @@ export default function Home() {
           destination_city: shipmentData.address.city,
           destination_province: shipmentData.address.province,
           destination_postal_code: shipmentData.address.postalCode,
-          destination_country: 'Canada',
+          destination_country: 'CA',
           box_type: shipmentData.box.type,
           box_length: shipmentData.box.length,
           box_width: shipmentData.box.width,
