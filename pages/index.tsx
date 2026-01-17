@@ -361,15 +361,17 @@ export default function Home() {
                       <div
                         onClick={() => handleStepClick(num)}
                         className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
-                          step >= num
+                          isCurrent
                             ? 'bg-gray-900 text-white'
-                            : 'bg-gray-200 text-gray-500'
+                            : isCompleted
+                            ? 'bg-gray-500 text-white'
+                            : 'bg-gray-200 text-gray-400'
                         } ${
                           isClickable
                             ? 'cursor-pointer hover:ring-2 hover:ring-gray-900 hover:ring-offset-2'
                             : isCurrent
                             ? ''
-                            : 'cursor-not-allowed opacity-50'
+                            : 'cursor-not-allowed'
                         }`}
                         title={isClickable ? 'Go back to this step' : undefined}
                       >
@@ -378,7 +380,7 @@ export default function Home() {
                       {num < 5 && (
                         <div
                           className={`flex-1 h-1 mx-2 rounded transition-all duration-200 ${
-                            step > num ? 'bg-gray-900' : 'bg-gray-200'
+                            step > num ? 'bg-gray-500' : 'bg-gray-200'
                           }`}
                         />
                       )}
@@ -424,6 +426,7 @@ export default function Home() {
                   organizationName={shipmentData.contact.organizationName}
                   organizationAccount={shipmentData.organization?.purolator_account || null}
                   onSelect={handleBillingSelect}
+                  onBack={() => setStep(3)}
                   costEstimates={shipmentData.costEstimates || undefined}
                 />
               )}

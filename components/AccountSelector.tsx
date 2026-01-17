@@ -5,6 +5,7 @@ type AccountSelectorProps = {
   organizationName: string
   organizationAccount: string | null
   onSelect: (billingType: 'csc' | 'institution', account: string) => void
+  onBack?: () => void
   costEstimates?: {
     csc: number | null
     institution: number | null
@@ -16,6 +17,7 @@ export default function AccountSelector({
   organizationName,
   organizationAccount,
   onSelect,
+  onBack,
   costEstimates
 }: AccountSelectorProps) {
   // Determine which is cheapest
@@ -195,12 +197,22 @@ export default function AccountSelector({
         </div>
       )}
 
-      <button
-        onClick={handleContinue}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-      >
-        Continue to Review
-      </button>
+      <div className="flex gap-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </button>
+        )}
+        <button
+          onClick={handleContinue}
+          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+        >
+          Continue to Review
+        </button>
+      </div>
     </div>
   )
 }
