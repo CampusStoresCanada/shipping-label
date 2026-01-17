@@ -37,6 +37,29 @@ console.log('  Key:', credentials.key)
 console.log('  Password:', credentials.password ? `${credentials.password.substring(0, 3)}...${credentials.password.substring(credentials.password.length - 2)}` : 'MISSING')
 console.log('  Password length:', credentials.password?.length)
 
+// Parse street address into components required by Purolator
+function parseStreetAddress(fullAddress: string): { streetNumber: string; streetName: string } {
+  if (!fullAddress) {
+    return { streetNumber: '0', streetName: 'Unknown' }
+  }
+
+  // Try to extract street number from the beginning
+  const match = fullAddress.trim().match(/^(\d+[\w-]*)\s+(.+)$/)
+
+  if (match) {
+    return {
+      streetNumber: match[1],
+      streetName: match[2]
+    }
+  }
+
+  // If no number found, use the whole thing as street name
+  return {
+    streetNumber: '0',
+    streetName: fullAddress.trim()
+  }
+}
+
 interface Address {
   street?: string
   city: string
@@ -358,21 +381,25 @@ export async function createShipment(
           TaxNumber: options.senderAccount || options.billingAccount,
         },
         ReceiverInformation: {
-          Address: {
-            Name: receiverInfo.name,
-            Company: receiverInfo.organization || receiverInfo.name,
-            StreetAddress: to.street || '',
-            City: to.city,
-            Province: normalizeProvince(to.province),
-            Country: to.country || 'CA',
-            PostalCode: formatPostalCode(to.postalCode),
-            PhoneNumber: {
-              CountryCode: '1',
-              AreaCode: receiverInfo.phone?.substring(0, 3) || '000',
-              Phone: receiverInfo.phone?.substring(3) || '0000000',
-            },
-            Email: receiverInfo.email,
-          },
+          Address: (() => {
+            const parsed = parseStreetAddress(to.street || '')
+            return {
+              Name: receiverInfo.name,
+              Company: receiverInfo.organization || receiverInfo.name,
+              StreetNumber: parsed.streetNumber,
+              StreetName: parsed.streetName,
+              City: to.city,
+              Province: normalizeProvince(to.province),
+              Country: to.country || 'CA',
+              PostalCode: formatPostalCode(to.postalCode),
+              PhoneNumber: {
+                CountryCode: '1',
+                AreaCode: receiverInfo.phone?.substring(0, 3) || '000',
+                Phone: receiverInfo.phone?.substring(3) || '0000000',
+              },
+              Email: receiverInfo.email,
+            }
+          })(),
         },
         PackageInformation: {
           ServiceID: 'PurolatorGround',
