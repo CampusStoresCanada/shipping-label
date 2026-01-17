@@ -136,25 +136,6 @@ export async function createShipmentInvoice(params: {
 }
 
 /**
- * Retrieve invoice status
- */
-export async function getInvoiceStatus(invoiceId: string): Promise<{
-  status: Stripe.Invoice.Status
-  paid: boolean
-  amountPaid: number
-  amountDue: number
-}> {
-  const invoice = await stripe.invoices.retrieve(invoiceId)
-
-  return {
-    status: invoice.status!,
-    paid: invoice.paid,
-    amountPaid: invoice.amount_paid / 100,
-    amountDue: invoice.amount_due / 100
-  }
-}
-
-/**
  * Send invoice reminder
  */
 export async function sendInvoiceReminder(invoiceId: string): Promise<void> {
