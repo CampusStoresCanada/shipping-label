@@ -296,7 +296,7 @@ export default function Home() {
   const handleReset = () => {
     setStep(1)
     setShipmentData({
-      contact: { id: null, name: '', email: '', organizationId: null, organizationName: '' },
+      contact: { id: null, name: '', email: '', phone: '', organizationId: null, organizationName: '' },
       organization: null,
       billing: null,
       address: null,
