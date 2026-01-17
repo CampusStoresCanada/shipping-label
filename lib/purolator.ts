@@ -360,9 +360,7 @@ export async function createShipment(
         ReceiverInformation: {
           Address: {
             Name: receiverInfo.name,
-            Company: receiverInfo.organization || '',
-            StreetNumber: '',
-            StreetName: to.street || '',
+            Company: receiverInfo.organization || receiverInfo.name,
             StreetAddress: to.street || '',
             City: to.city,
             Province: normalizeProvince(to.province),

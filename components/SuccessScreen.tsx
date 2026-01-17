@@ -21,41 +21,7 @@ export default function SuccessScreen({
   billingType,
   estimatedCost
 }: SuccessScreenProps) {
-  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false)
-  const [invoiceCreated, setInvoiceCreated] = useState(false)
-  const [invoiceError, setInvoiceError] = useState<string | null>(null)
-  const requiresInvoice = billingType === 'csc'
-
-  // Auto-create invoice for CSC billing
-  useEffect(() => {
-    if (requiresInvoice && shipmentId && !invoiceCreated && !isCreatingInvoice) {
-      const createInvoice = async () => {
-        setIsCreatingInvoice(true)
-        try {
-          const response = await fetch('/api/create-invoice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shipmentId })
-          })
-
-          const data = await response.json()
-
-          if (data.success) {
-            setInvoiceCreated(true)
-            console.log('✅ Invoice created:', data.invoiceId)
-          } else {
-            setInvoiceError(data.error || 'Failed to create invoice')
-          }
-        } catch (error: any) {
-          setInvoiceError(error.message || 'Failed to create invoice')
-        } finally {
-          setIsCreatingInvoice(false)
-        }
-      }
-
-      createInvoice()
-    }
-  }, [requiresInvoice, shipmentId, invoiceCreated, isCreatingInvoice])
+  // Invoice is already created during shipment creation, no need to create it here
 
   useEffect(() => {
     // Auto-reset after specified seconds
