@@ -103,7 +103,7 @@ export default function SuccessScreen({
       </div>
 
       {/* Invoice Section for CSC Billing */}
-      {requiresInvoice && (
+      {billingType === 'csc' && estimatedCost && (
         <div className="pt-4 border-t border-gray-200">
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
             <div className="flex items-start gap-3">
@@ -111,40 +111,17 @@ export default function SuccessScreen({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <div className="flex-1">
-                {isCreatingInvoice && (
-                  <>
-                    <h3 className="font-bold text-gray-900 mb-1">Creating Invoice...</h3>
-                    <p className="text-sm text-gray-700">
-                      Please wait while we generate your invoice.
-                    </p>
-                  </>
-                )}
-                {invoiceCreated && !invoiceError && (
-                  <>
-                    <h3 className="font-bold text-gray-900 mb-1">Invoice Sent!</h3>
-                    <p className="text-sm text-gray-700 mb-3">
-                      An invoice for ${estimatedCost?.toFixed(2)} CAD has been sent to your email.
-                      Payment is due within 30 days.
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded p-2">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>Invoice created and emailed</span>
-                    </div>
-                  </>
-                )}
-                {invoiceError && (
-                  <>
-                    <h3 className="font-bold text-gray-900 mb-1">Invoice Error</h3>
-                    <p className="text-sm text-red-700 mb-2">
-                      {invoiceError}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      Don't worry - your shipment was created successfully. We'll contact you about payment.
-                    </p>
-                  </>
-                )}
+                <h3 className="font-bold text-gray-900 mb-1">Invoice Sent!</h3>
+                <p className="text-sm text-gray-700 mb-3">
+                  An invoice for ${estimatedCost.toFixed(2)} CAD has been sent to your email.
+                  Payment is due within 30 days.
+                </p>
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded p-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>Invoice created and emailed</span>
+                </div>
               </div>
             </div>
           </div>
