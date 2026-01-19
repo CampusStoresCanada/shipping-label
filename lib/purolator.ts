@@ -730,8 +730,17 @@ export async function createShipment(
         labelUrl: documents.labelUrl,
         rawResponse: response.data,
       }
-    } catch (docError) {
-      console.error('⚠️ Warning: Could not retrieve shipping documents:', docError)
+    } catch (docError: any) {
+      // GetDocuments often returns 403 in dev/test environments
+      // This is expected - dev credentials don't have permission to retrieve actual labels
+      if (docError.message?.includes('403')) {
+        console.log('⚠️ GetDocuments returned 403 - this is expected in dev/test environments')
+        console.log('   Dev credentials typically cannot retrieve actual shipping labels')
+        console.log('   The shipment was created successfully with tracking:', parsed.shipmentPIN)
+      } else {
+        console.error('⚠️ Warning: Could not retrieve shipping documents:', docError)
+      }
+
       // Return shipment info without documents
       return {
         trackingNumber: parsed.shipmentPIN,
@@ -788,9 +797,10 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     })
 
     console.log('📊 Documents Response Status:', response.status)
+    console.log('📊 Documents Response Body:', response.data)
 
     if (response.status !== 200) {
-      throw new Error(`GetDocuments failed with status ${response.status}`)
+      throw new Error(`GetDocuments failed with status ${response.status}: ${response.data}`)
     }
 
     // Parse the response for the base64 PDF data
