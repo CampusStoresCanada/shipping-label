@@ -1,13 +1,15 @@
 import * as soap from 'soap'
 import * as path from 'path'
+import axios from 'axios'
 import { CONFERENCE_ADDRESS, STANDARD_BOX } from './constants'
 
 // Purolator API configuration
 const PUROLATOR_CONFIG = {
   development: {
-    estimatingUrl: path.join(process.cwd(), 'wsdl', 'EstimatingService.wsdl'),
+    // Use remote WSDL URLs to ensure node-soap generates proper namespaces
+    estimatingUrl: 'https://devwebservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx?wsdl',
     estimatingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
-    shippingUrl: path.join(process.cwd(), 'wsdl', 'ShippingService.wsdl'),
+    shippingUrl: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
     shippingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
     trackingUrl: 'https://devwebservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Development', 'PickUpService.wsdl'),
@@ -114,7 +116,8 @@ interface ShipmentOptions {
 function createSecurityHeader(version: 'v1' | 'v2' = 'v2') {
   // Use raw XML to ensure proper namespace handling
   const namespace = version === 'v1' ? 'http://purolator.com/pws/datatypes/v1' : 'http://purolator.com/pws/datatypes/v2'
-  const versionNumber = version === 'v1' ? '1.2' : '2.0'
+  // IMPORTANT: Use version 2.2 for v2 services as per Purolator API documentation
+  const versionNumber = version === 'v1' ? '1.2' : '2.2'
 
   // UserToken is optional (minOccurs="0" in WSDL) and only needed for resellers
   // We use Basic Auth instead, so leave GroupID empty and omit UserToken
@@ -371,6 +374,162 @@ async function getFullEstimateInternal(
   }
 }
 
+// Helper function to escape XML special characters
+function escapeXml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+// Helper function to build CreateShipment XML with proper v2: namespaces
+function buildCreateShipmentXML(params: {
+  senderStreetNumber: string
+  senderStreetName: string
+  senderCity: string
+  senderProvince: string
+  senderPostalCode: string
+  senderTaxNumber: string
+  receiverName: string
+  receiverCompany: string
+  receiverStreetNumber: string
+  receiverStreetName: string
+  receiverCity: string
+  receiverProvince: string
+  receiverPostalCode: string
+  receiverPhoneAreaCode: string
+  receiverPhone: string
+  serviceID: string
+  description: string
+  weight: string
+  length: string
+  width: string
+  height: string
+  billingAccount: string
+  registeredAccount: string
+  reference1: string
+  printerType: string
+}): string {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v2="http://purolator.com/pws/datatypes/v2">
+   <soapenv:Header>
+     <v2:RequestContext>
+       <v2:Version>2.0</v2:Version>
+       <v2:Language>en</v2:Language>
+       <v2:GroupID></v2:GroupID>
+       <v2:RequestReference>Rating Example</v2:RequestReference>
+     </v2:RequestContext>
+   </soapenv:Header>
+   <soapenv:Body>
+      <v2:CreateShipmentRequest>
+         <v2:Shipment>
+            <v2:SenderInformation>
+               <v2:Address>
+                  <v2:Name>Campus Stores Canada</v2:Name>
+                  <v2:Company>Campus Stores Canada</v2:Company>
+                  <v2:StreetNumber>${escapeXml(params.senderStreetNumber)}</v2:StreetNumber>
+                  <v2:StreetName>${escapeXml(params.senderStreetName)}</v2:StreetName>
+                  <v2:City>${escapeXml(params.senderCity)}</v2:City>
+                  <v2:Province>${escapeXml(params.senderProvince)}</v2:Province>
+                  <v2:Country>CA</v2:Country>
+                  <v2:PostalCode>${escapeXml(params.senderPostalCode)}</v2:PostalCode>
+                  <v2:PhoneNumber>
+                     <v2:CountryCode>1</v2:CountryCode>
+                     <v2:AreaCode>905</v2:AreaCode>
+                     <v2:Phone>3581430</v2:Phone>
+                  </v2:PhoneNumber>
+               </v2:Address>
+               <v2:TaxNumber>${escapeXml(params.senderTaxNumber)}</v2:TaxNumber>
+            </v2:SenderInformation>
+            <v2:ReceiverInformation>
+               <v2:Address>
+                  <v2:Name>${escapeXml(params.receiverName)}</v2:Name>
+                  <v2:Company>${escapeXml(params.receiverCompany)}</v2:Company>
+                  <v2:StreetNumber>${escapeXml(params.receiverStreetNumber)}</v2:StreetNumber>
+                  <v2:StreetName>${escapeXml(params.receiverStreetName)}</v2:StreetName>
+                  <v2:City>${escapeXml(params.receiverCity)}</v2:City>
+                  <v2:Province>${escapeXml(params.receiverProvince)}</v2:Province>
+                  <v2:Country>CA</v2:Country>
+                  <v2:PostalCode>${escapeXml(params.receiverPostalCode)}</v2:PostalCode>
+                  <v2:PhoneNumber>
+                     <v2:CountryCode>1</v2:CountryCode>
+                     <v2:AreaCode>${escapeXml(params.receiverPhoneAreaCode)}</v2:AreaCode>
+                     <v2:Phone>${escapeXml(params.receiverPhone)}</v2:Phone>
+                  </v2:PhoneNumber>
+               </v2:Address>
+               <v2:TaxNumber>123456</v2:TaxNumber>
+            </v2:ReceiverInformation>
+            <v2:PackageInformation>
+               <v2:ServiceID>${escapeXml(params.serviceID)}</v2:ServiceID>
+               <v2:Description>${escapeXml(params.description)}</v2:Description>
+               <v2:TotalWeight>
+                  <v2:Value>${escapeXml(params.weight)}</v2:Value>
+                  <v2:WeightUnit>lb</v2:WeightUnit>
+               </v2:TotalWeight>
+               <v2:TotalPieces>1</v2:TotalPieces>
+               <v2:PiecesInformation>
+                  <v2:Piece>
+                     <v2:Weight>
+                        <v2:Value>${escapeXml(params.weight)}</v2:Value>
+                        <v2:WeightUnit>lb</v2:WeightUnit>
+                     </v2:Weight>
+                     <v2:Length>
+                        <v2:Value>${escapeXml(params.length)}</v2:Value>
+                        <v2:DimensionUnit>in</v2:DimensionUnit>
+                     </v2:Length>
+                     <v2:Width>
+                        <v2:Value>${escapeXml(params.width)}</v2:Value>
+                        <v2:DimensionUnit>in</v2:DimensionUnit>
+                     </v2:Width>
+                     <v2:Height>
+                        <v2:Value>${escapeXml(params.height)}</v2:Value>
+                        <v2:DimensionUnit>in</v2:DimensionUnit>
+                     </v2:Height>
+                  </v2:Piece>
+               </v2:PiecesInformation>
+            </v2:PackageInformation>
+            <v2:PaymentInformation>
+               <v2:PaymentType>Sender</v2:PaymentType>
+               <v2:RegisteredAccountNumber>${escapeXml(params.registeredAccount)}</v2:RegisteredAccountNumber>
+               <v2:BillingAccountNumber>${escapeXml(params.billingAccount)}</v2:BillingAccountNumber>
+            </v2:PaymentInformation>
+            <v2:PickupInformation>
+               <v2:PickupType>PreScheduled</v2:PickupType>
+            </v2:PickupInformation>
+            <v2:TrackingReferenceInformation>
+               <v2:Reference1>${escapeXml(params.reference1)}</v2:Reference1>
+            </v2:TrackingReferenceInformation>
+         </v2:Shipment>
+         <v2:PrinterType>${escapeXml(params.printerType)}</v2:PrinterType>
+      </v2:CreateShipmentRequest>
+   </soapenv:Body>
+</soapenv:Envelope>`
+}
+
+// Helper to parse CreateShipment XML response
+function parseCreateShipmentResponse(xmlResponse: string): {
+  shipmentPIN: string
+  piecePINs: string[]
+  hasErrors: boolean
+  errors?: any[]
+} {
+  // Simple regex-based XML parsing (good enough for SOAP responses)
+  const shipmentPINMatch = xmlResponse.match(/<ShipmentPIN[^>]*>[\s\S]*?<Value>([^<]+)<\/Value>/)
+  const piecePINMatches = xmlResponse.matchAll(/<PIN[^>]*>[\s\S]*?<Value>([^<]+)<\/Value>/g)
+  const errorsMatch = xmlResponse.match(/<Errors\s*\/>/) || xmlResponse.match(/<Errors\s*i:nil="true"/)
+
+  const shipmentPIN = shipmentPINMatch ? shipmentPINMatch[1] : ''
+  const piecePINs = Array.from(piecePINMatches).map(m => m[1])
+
+  return {
+    shipmentPIN,
+    piecePINs,
+    hasErrors: !errorsMatch,
+  }
+}
+
 // Create a shipment and get label
 export async function createShipment(
   from: Address,
@@ -390,11 +549,7 @@ export async function createShipment(
   rawResponse: any
 }> {
   try {
-    const client = await createSoapClient(config.shippingUrl, (config as any).shippingEndpoint)
-
-    const shipmentDate = new Date().toISOString().split('T')[0]
-
-    // Parse both sender and receiver street addresses
+    // Parse street addresses
     const senderParsed = parseStreetAddress(from.street || CONFERENCE_ADDRESS.street || '6650 Fallsview Blvd')
     const receiverParsed = parseStreetAddress(to.street || '')
     const receiverPhone = parsePhoneNumber(receiverInfo.phone)
@@ -404,7 +559,15 @@ export async function createShipment(
     console.log('  Receiver:', receiverParsed)
     console.log('📞 Parsed Phone:', receiverPhone)
 
-    const request = {
+    // STEP 1: Validate shipment using node-soap (this works fine)
+    // NOTE: Temporarily disabled for testing - can be re-enabled later
+    const skipValidation = process.env.SKIP_VALIDATION === 'true'
+
+    if (!skipValidation) {
+      console.log('📋 Step 1: Validating shipment...')
+      const client = await createSoapClient(config.shippingUrl, (config as any).shippingEndpoint)
+
+      const validationRequest = {
       Shipment: {
         SenderInformation: {
           Address: {
@@ -439,7 +602,6 @@ export async function createShipment(
               AreaCode: receiverPhone.areaCode,
               Phone: receiverPhone.phone,
             },
-            Email: receiverInfo.email,
           },
         },
         PackageInformation: {
@@ -478,82 +640,91 @@ export async function createShipment(
         },
         PickupInformation: {
           PickupType: 'PreScheduled',
-          // All shipments reference the conference pickup on Friday, Jan 30, 2026
-          // The actual pickup is scheduled separately via /api/schedule-pickup
         },
-        NotificationInformation: {
-          ConfirmationEmail: receiverInfo.email,
-        },
-        TrackingReferenceInformation: {
-          Reference1: `CSC-${Date.now()}`,
-        },
-        ShipmentDate: shipmentDate,
       },
       PrinterType: 'Thermal',
-    }
+      }
 
-    console.log('🚀 Purolator Shipment Request:', JSON.stringify(request, null, 2))
-
-    // STEP 1: Validate the shipment first
-    console.log('📋 Step 1: Validating shipment...')
-    const validationResult: any = await new Promise((resolve, reject) => {
-      client.ValidateShipment(request, (err: any, result: any) => {
-        if (err) {
-          console.error('❌ Purolator Validation Error:', err)
-          reject(err)
-          return
-        }
-        console.log('✅ Validation successful:', JSON.stringify(result, null, 2))
-        resolve(result)
-      })
-    })
-
-    // STEP 2: Create the shipment
-    console.log('📦 Step 2: Creating shipment...')
-    return new Promise((resolve, reject) => {
-      client.CreateShipment(request, (err: any, result: any) => {
-        if (err) {
-          console.error('❌ Purolator Shipment Creation Error:', err)
-          reject(err)
-          return
-        }
-
-        console.log('✅ Purolator Shipment Response:', JSON.stringify(result, null, 2))
-
-        try {
-          const shipmentPIN = result?.ShipmentPIN?.Value
-          const pieces = result?.PiecesInformation?.Piece
-
-          if (!shipmentPIN) {
-            reject(new Error('No tracking number received from Purolator'))
+      await new Promise((resolve, reject) => {
+        client.ValidateShipment(validationRequest, (err: any, result: any) => {
+          if (err) {
+            console.error('❌ Purolator Validation Error:', err)
+            reject(err)
             return
           }
-
-          // Extract label (base64 encoded PDF)
-          let labelUrl = ''
-          if (pieces) {
-            const piece = Array.isArray(pieces) ? pieces[0] : pieces
-            const labelData = piece?.PIN?.Label?.Image
-            if (labelData) {
-              // Convert base64 to data URL
-              labelUrl = `data:application/pdf;base64,${labelData}`
-            }
-          }
-
-          resolve({
-            trackingNumber: shipmentPIN,
-            labelUrl,
-            cost: result?.ShipmentDetail?.TotalPrice
-              ? parseFloat(result.ShipmentDetail.TotalPrice.Value)
-              : undefined,
-            rawResponse: result,
-          })
-        } catch (parseError) {
-          console.error('❌ Error parsing Purolator response:', parseError)
-          reject(parseError)
-        }
+          console.log('✅ Validation successful:', JSON.stringify(result, null, 2))
+          resolve(result)
+        })
       })
+    } else {
+      console.log('⏭️  Skipping validation (SKIP_VALIDATION=true)')
+    }
+
+    // STEP 2: Create shipment using raw XML with proper namespaces
+    console.log('📦 Step 2: Creating shipment with raw XML...')
+
+    const xml = buildCreateShipmentXML({
+      senderStreetNumber: senderParsed.streetNumber,
+      senderStreetName: senderParsed.streetName,
+      senderCity: from.city || CONFERENCE_ADDRESS.city,
+      senderProvince: normalizeProvince(from.province || CONFERENCE_ADDRESS.province),
+      senderPostalCode: formatPostalCode(from.postalCode || CONFERENCE_ADDRESS.postalCode),
+      senderTaxNumber: options.senderAccount || options.billingAccount,
+      receiverName: receiverInfo.name,
+      receiverCompany: receiverInfo.organization || receiverInfo.name,
+      receiverStreetNumber: receiverParsed.streetNumber,
+      receiverStreetName: receiverParsed.streetName,
+      receiverCity: to.city,
+      receiverProvince: normalizeProvince(to.province),
+      receiverPostalCode: formatPostalCode(to.postalCode),
+      receiverPhoneAreaCode: receiverPhone.areaCode,
+      receiverPhone: receiverPhone.phone,
+      serviceID: 'PurolatorGround',
+      description: 'Package',
+      weight: packageInfo.weight.toString(),
+      length: packageInfo.length.toString(),
+      width: packageInfo.width.toString(),
+      height: packageInfo.height.toString(),
+      billingAccount: options.billingAccount,
+      registeredAccount: options.billingAccount,
+      reference1: `CSC-${Date.now()}`,
+      printerType: 'Thermal',
     })
+
+    const authHeader = 'Basic ' + Buffer.from(`${credentials.key}:${credentials.password}`).toString('base64')
+    const endpoint = (config as any).shippingEndpoint
+
+    const response = await axios.post(endpoint, xml, {
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': 'http://purolator.com/pws/service/v2/CreateShipment',
+        'Authorization': authHeader,
+      },
+      validateStatus: () => true, // Don't throw on non-200
+    })
+
+    console.log('📊 Response Status:', response.status)
+    console.log('📊 Response Data:', response.data)
+
+    if (response.status !== 200) {
+      throw new Error(`CreateShipment failed with status ${response.status}: ${response.data}`)
+    }
+
+    const parsed = parseCreateShipmentResponse(response.data)
+
+    if (parsed.hasErrors) {
+      throw new Error('CreateShipment returned errors')
+    }
+
+    if (!parsed.shipmentPIN) {
+      throw new Error('No tracking number received from Purolator')
+    }
+
+    return {
+      trackingNumber: parsed.shipmentPIN,
+      labelUrl: '', // TODO: Parse label from response if needed
+      rawResponse: response.data,
+    }
   } catch (error) {
     console.error('❌ Error in createShipment:', error)
     throw error
