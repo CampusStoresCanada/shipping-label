@@ -485,8 +485,24 @@ export async function createShipment(
       PrinterType: 'Thermal',
     }
 
-    console.log('🚀 Purolator Create Shipment Request:', JSON.stringify(request, null, 2))
+    console.log('🚀 Purolator Shipment Request:', JSON.stringify(request, null, 2))
 
+    // STEP 1: Validate the shipment first
+    console.log('📋 Step 1: Validating shipment...')
+    const validationResult: any = await new Promise((resolve, reject) => {
+      client.ValidateShipment(request, (err: any, result: any) => {
+        if (err) {
+          console.error('❌ Purolator Validation Error:', err)
+          reject(err)
+          return
+        }
+        console.log('✅ Validation successful:', JSON.stringify(result, null, 2))
+        resolve(result)
+      })
+    })
+
+    // STEP 2: Create the shipment
+    console.log('📦 Step 2: Creating shipment...')
     return new Promise((resolve, reject) => {
       client.CreateShipment(request, (err: any, result: any) => {
         if (err) {
