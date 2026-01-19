@@ -15,7 +15,7 @@ const PUROLATOR_CONFIG = {
   production: {
     estimatingUrl: path.join(process.cwd(), 'EstimatingService.wsdl'),
     estimatingEndpoint: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
-    shippingUrl: path.join(process.cwd(), 'ShippingService.wsdl'),
+    shippingUrl: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
     shippingEndpoint: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
     trackingUrl: 'https://webservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Production', 'PickUpService.wsdl'),
