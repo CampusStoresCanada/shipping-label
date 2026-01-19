@@ -7,7 +7,8 @@ const PUROLATOR_CONFIG = {
   development: {
     estimatingUrl: path.join(process.cwd(), 'wsdl', 'EstimatingService.wsdl'),
     estimatingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
-    shippingUrl: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
+    shippingUrl: path.join(process.cwd(), 'wsdl', 'ShippingService.wsdl'),
+    shippingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
     trackingUrl: 'https://devwebservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Development', 'PickUpService.wsdl'),
     pickupEndpoint: 'https://devwebservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
@@ -15,7 +16,7 @@ const PUROLATOR_CONFIG = {
   production: {
     estimatingUrl: path.join(process.cwd(), 'EstimatingService.wsdl'),
     estimatingEndpoint: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
-    shippingUrl: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
+    shippingUrl: path.join(process.cwd(), 'ShippingService.wsdl'),
     shippingEndpoint: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
     trackingUrl: 'https://webservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Production', 'PickUpService.wsdl'),
