@@ -10,7 +10,8 @@ export async function sendTrackingEmail(data: {
   expectedDelivery?: string
   organizationName: string
 }) {
-  const trackingUrl = `https://www.purolator.com/en/shipping-tracking?search=${data.trackingNumber}`
+  const shipDate = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+  const trackingUrl = `https://www.purolator.com/en/shipping/tracker?pin=${data.trackingNumber}&sdate=${shipDate}`
 
   const deliveryMessage = data.expectedDelivery
     ? `Expected delivery: ${new Date(data.expectedDelivery).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
@@ -126,6 +127,8 @@ export async function sendShipmentNotification(data: {
 }) {
   try {
     const notificationEmail = process.env.NOTIFICATION_EMAIL || 'google@campusstores.ca'
+    const shipDate = new Date().toISOString().split('T')[0]
+    const trackingUrl = `https://www.purolator.com/en/shipping/tracker?pin=${data.trackingNumber}&sdate=${shipDate}`
 
     const emailHtml = `
       <h2>New Shipment Created</h2>
@@ -133,7 +136,7 @@ export async function sendShipmentNotification(data: {
 
       <h3>Shipment Details</h3>
       <ul>
-        <li><strong>Tracking Number:</strong> ${data.trackingNumber}</li>
+        <li><strong>Tracking Number:</strong> <a href="${trackingUrl}">${data.trackingNumber}</a></li>
         <li><strong>Recipient:</strong> ${data.contactName} (${data.contactEmail})</li>
         <li><strong>Organization:</strong> ${data.organizationName}</li>
         <li><strong>Destination:</strong> ${data.destinationAddress}</li>

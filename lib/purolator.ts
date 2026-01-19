@@ -722,31 +722,15 @@ export async function createShipment(
     }
 
     // STEP 3: Get the shipping label/documents
-    console.log('📄 Step 3: Retrieving shipping documents...')
-    try {
-      const documents = await getShipmentDocuments(parsed.shipmentPIN)
-      return {
-        trackingNumber: parsed.shipmentPIN,
-        labelUrl: documents.labelUrl,
-        rawResponse: response.data,
-      }
-    } catch (docError: any) {
-      // GetDocuments often returns 403 in dev/test environments
-      // This is expected - dev credentials don't have permission to retrieve actual labels
-      if (docError.message?.includes('403')) {
-        console.log('⚠️ GetDocuments returned 403 - this is expected in dev/test environments')
-        console.log('   Dev credentials typically cannot retrieve actual shipping labels')
-        console.log('   The shipment was created successfully with tracking:', parsed.shipmentPIN)
-      } else {
-        console.error('⚠️ Warning: Could not retrieve shipping documents:', docError)
-      }
+    // NOTE: GetDocuments endpoint requires AWS Signature v4 authentication, not Basic Auth
+    // Skipping for now - labels are optional and can be accessed via Purolator portal
+    console.log('📄 Step 3: Shipping label can be accessed via Purolator portal')
+    console.log('   Tracking: https://www.purolator.com/en/ship-track/tracking-details.page?pin=' + parsed.shipmentPIN)
 
-      // Return shipment info without documents
-      return {
-        trackingNumber: parsed.shipmentPIN,
-        labelUrl: '',
-        rawResponse: response.data,
-      }
+    return {
+      trackingNumber: parsed.shipmentPIN,
+      labelUrl: '', // Labels require AWS S3 auth - not implemented
+      rawResponse: response.data,
     }
   } catch (error) {
     console.error('❌ Error in createShipment:', error)

@@ -55,8 +55,13 @@ export default async function handler(
 
     console.log('📦 Creating Purolator Shipment:')
     console.log(`  Recipient: ${shipmentData.contact_name} (${shipmentData.contact_email})`)
+    console.log(`  Organization: ${shipmentData.organization_name}`)
     console.log(`  Destination: ${shipmentData.destination_city}, ${shipmentData.destination_province}`)
     console.log(`  Billing: ${shipmentData.billing_type} (${shipmentData.billing_account})`)
+    console.log('📋 STRIPE DATA THAT WILL BE SENT:')
+    console.log(`  contactEmail: ${shipmentData.contact_email}`)
+    console.log(`  contactName: ${shipmentData.contact_name}`)
+    console.log(`  organizationName: ${shipmentData.organization_name}`)
 
     // Step 1: Get shipping cost estimate
     console.log('💰 Getting shipping cost estimate...')

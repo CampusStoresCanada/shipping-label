@@ -100,16 +100,20 @@ export async function createShipmentInvoice(params: {
       ]
     })
 
-    // Add invoice item
+    // Add invoice item with tracking link
+    const shipDate = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    const trackingUrl = `https://www.purolator.com/en/shipping/tracker?pin=${params.trackingNumber}&sdate=${shipDate}`
+
     await stripe.invoiceItems.create({
       customer: customer.id,
       invoice: invoice.id,
       amount: Math.round(params.shippingCost * 100), // Convert to cents
       currency: 'cad',
-      description: `Purolator Ground Shipping - ${params.trackingNumber}`,
+      description: `Purolator Ground Shipping\nTracking: ${params.trackingNumber}\nTrack your shipment: ${trackingUrl}`,
       metadata: {
         shipmentId: params.shipmentId,
-        trackingNumber: params.trackingNumber
+        trackingNumber: params.trackingNumber,
+        trackingUrl: trackingUrl
       }
     })
 
