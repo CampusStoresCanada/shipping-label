@@ -547,7 +547,6 @@ export async function createShipment(
 ): Promise<{
   trackingNumber: string
   labelUrl: string
-  cost?: number
   rawResponse: any
 }> {
   try {
@@ -729,7 +728,6 @@ export async function createShipment(
       return {
         trackingNumber: parsed.shipmentPIN,
         labelUrl: documents.labelUrl,
-        cost: documents.cost,
         rawResponse: response.data,
       }
     } catch (docError) {
@@ -750,7 +748,6 @@ export async function createShipment(
 // Get shipping documents (label PDF) for a shipment
 export async function getShipmentDocuments(trackingNumber: string): Promise<{
   labelUrl: string
-  cost?: number
 }> {
   try {
     const xml = `<?xml version="1.0" encoding="utf-8"?>

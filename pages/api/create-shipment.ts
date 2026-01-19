@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Shipment } from '@/lib/supabase'
-import { createShipment as createPurolatorShipment, CONFERENCE_ADDRESS } from '@/lib/purolator'
+import { createShipment as createPurolatorShipment, getQuickEstimate, CONFERENCE_ADDRESS } from '@/lib/purolator'
 import { sendShipmentNotification, sendTrackingEmail } from '@/lib/email'
 import { createShipmentInvoice } from '@/lib/stripe'
 
@@ -58,10 +58,43 @@ export default async function handler(
     console.log(`  Destination: ${shipmentData.destination_city}, ${shipmentData.destination_province}`)
     console.log(`  Billing: ${shipmentData.billing_type} (${shipmentData.billing_account})`)
 
-    // Create shipment with Purolator API
+    // Step 1: Get shipping cost estimate
+    console.log('💰 Getting shipping cost estimate...')
+    let estimatedCost: number
+    try {
+      estimatedCost = await getQuickEstimate(
+        {
+          city: shipmentData.origin_city || CONFERENCE_ADDRESS.city,
+          province: shipmentData.origin_province || CONFERENCE_ADDRESS.province,
+          postalCode: shipmentData.origin_postal_code || CONFERENCE_ADDRESS.postalCode,
+          street: shipmentData.origin_street || CONFERENCE_ADDRESS.street,
+        },
+        {
+          city: shipmentData.destination_city,
+          province: shipmentData.destination_province,
+          postalCode: shipmentData.destination_postal_code,
+          street: shipmentData.destination_street,
+        },
+        {
+          length: shipmentData.box_length,
+          width: shipmentData.box_width,
+          height: shipmentData.box_height,
+          weight: shipmentData.weight
+        },
+        shipmentData.billing_account
+      ) || 0
+      console.log(`  ✅ Estimated cost: $${estimatedCost}`)
+    } catch (estimateError) {
+      console.error('  ⚠️  Could not get estimate, using fallback calculation')
+      estimatedCost = calculateEstimatedCost(
+        shipmentData.weight,
+        shipmentData.destination_province
+      )
+    }
+
+    // Step 2: Create shipment with Purolator API
     let trackingNumber: string
     let labelUrl: string
-    let estimatedCost: number
     let purolatorResponse: any
 
     try {
@@ -100,11 +133,10 @@ export default async function handler(
 
       trackingNumber = result.trackingNumber
       labelUrl = result.labelUrl
-      estimatedCost = result.cost || 0
       purolatorResponse = result.rawResponse
 
       console.log(`  ✅ Shipment created: ${trackingNumber}`)
-      console.log(`  ✅ Cost: $${estimatedCost}`)
+      console.log(`  ✅ Label URL: ${labelUrl ? 'Generated' : 'Missing'}`)
     } catch (purolatorError: any) {
       console.error('  ❌ Purolator API Error:', purolatorError)
 
