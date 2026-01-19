@@ -11,6 +11,7 @@ const PUROLATOR_CONFIG = {
     estimatingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
     shippingUrl: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx?wsdl',
     shippingEndpoint: 'https://devwebservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
+    documentsEndpoint: 'https://devwebservices.purolator.com/EWS/V2/ShippingDocuments/ShippingDocumentsService.asmx',
     trackingUrl: 'https://devwebservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Development', 'PickUpService.wsdl'),
     pickupEndpoint: 'https://devwebservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
@@ -20,6 +21,7 @@ const PUROLATOR_CONFIG = {
     estimatingEndpoint: 'https://webservices.purolator.com/EWS/V2/Estimating/EstimatingService.asmx',
     shippingUrl: path.join(process.cwd(), 'ShippingService.wsdl'),
     shippingEndpoint: 'https://webservices.purolator.com/EWS/V2/Shipping/ShippingService.asmx',
+    documentsEndpoint: 'https://webservices.purolator.com/EWS/V2/ShippingDocuments/ShippingDocumentsService.asmx',
     trackingUrl: 'https://webservices.purolator.com/EWS/V2/Tracking/TrackingService.asmx?wsdl',
     pickupUrl: path.join(process.cwd(), 'purolatoreshipws-pickup-wsdl', 'Production', 'PickUpService.wsdl'),
     pickupEndpoint: 'https://webservices.purolator.com/EWS/V1/PickUp/PickUpService.asmx',
@@ -720,13 +722,92 @@ export async function createShipment(
       throw new Error('No tracking number received from Purolator')
     }
 
-    return {
-      trackingNumber: parsed.shipmentPIN,
-      labelUrl: '', // TODO: Parse label from response if needed
-      rawResponse: response.data,
+    // STEP 3: Get the shipping label/documents
+    console.log('📄 Step 3: Retrieving shipping documents...')
+    try {
+      const documents = await getShipmentDocuments(parsed.shipmentPIN)
+      return {
+        trackingNumber: parsed.shipmentPIN,
+        labelUrl: documents.labelUrl,
+        cost: documents.cost,
+        rawResponse: response.data,
+      }
+    } catch (docError) {
+      console.error('⚠️ Warning: Could not retrieve shipping documents:', docError)
+      // Return shipment info without documents
+      return {
+        trackingNumber: parsed.shipmentPIN,
+        labelUrl: '',
+        rawResponse: response.data,
+      }
     }
   } catch (error) {
     console.error('❌ Error in createShipment:', error)
+    throw error
+  }
+}
+
+// Get shipping documents (label PDF) for a shipment
+export async function getShipmentDocuments(trackingNumber: string): Promise<{
+  labelUrl: string
+  cost?: number
+}> {
+  try {
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v2="http://purolator.com/pws/datatypes/v2">
+   <soapenv:Header>
+     <v2:RequestContext>
+       <v2:Version>2.0</v2:Version>
+       <v2:Language>en</v2:Language>
+       <v2:GroupID></v2:GroupID>
+       <v2:RequestReference>Rating Example</v2:RequestReference>
+     </v2:RequestContext>
+   </soapenv:Header>
+   <soapenv:Body>
+      <v2:GetDocumentsRequest>
+         <v2:OutputType>PDF</v2:OutputType>
+         <v2:Synchronous>true</v2:Synchronous>
+         <v2:DocumentCriterium>
+            <v2:DocumentCriteria>
+               <v2:PIN>
+                  <v2:Value>${escapeXml(trackingNumber)}</v2:Value>
+               </v2:PIN>
+            </v2:DocumentCriteria>
+         </v2:DocumentCriterium>
+      </v2:GetDocumentsRequest>
+   </soapenv:Body>
+</soapenv:Envelope>`
+
+    const authHeader = 'Basic ' + Buffer.from(`${credentials.key}:${credentials.password}`).toString('base64')
+    const endpoint = (config as any).documentsEndpoint
+
+    const response = await axios.post(endpoint, xml, {
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': 'http://purolator.com/pws/service/v2/GetDocuments',
+        'Authorization': authHeader,
+      },
+      validateStatus: () => true,
+    })
+
+    console.log('📊 Documents Response Status:', response.status)
+
+    if (response.status !== 200) {
+      throw new Error(`GetDocuments failed with status ${response.status}`)
+    }
+
+    // Parse the response for the base64 PDF data
+    const documentMatch = response.data.match(/<Data>([^<]+)<\/Data>/)
+    if (documentMatch && documentMatch[1]) {
+      const base64Data = documentMatch[1]
+      return {
+        labelUrl: `data:application/pdf;base64,${base64Data}`,
+      }
+    }
+
+    throw new Error('No document data found in response')
+  } catch (error) {
+    console.error('❌ Error in getShipmentDocuments:', error)
     throw error
   }
 }
