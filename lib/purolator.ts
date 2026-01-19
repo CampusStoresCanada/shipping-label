@@ -24,8 +24,15 @@ const PUROLATOR_CONFIG = {
   }
 }
 
-const isProduction = process.env.NODE_ENV === 'production' && process.env.PUROLATOR_USE_PRODUCTION === 'true'
+// Only use production Purolator API if explicitly enabled (not just because NODE_ENV is production)
+const isProduction = process.env.PUROLATOR_USE_PRODUCTION === 'true'
 const config = isProduction ? PUROLATOR_CONFIG.production : PUROLATOR_CONFIG.development
+
+console.log('🔧 Purolator Configuration:')
+console.log('  NODE_ENV:', process.env.NODE_ENV)
+console.log('  PUROLATOR_USE_PRODUCTION:', process.env.PUROLATOR_USE_PRODUCTION)
+console.log('  Using:', isProduction ? 'PRODUCTION' : 'DEVELOPMENT', 'endpoints')
+console.log('  Shipping endpoint:', isProduction ? PUROLATOR_CONFIG.production.shippingEndpoint : PUROLATOR_CONFIG.development.shippingEndpoint)
 
 // Authentication credentials
 const credentials = {
