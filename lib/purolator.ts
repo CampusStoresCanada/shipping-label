@@ -108,8 +108,10 @@ function createSecurityHeader(version: 'v1' | 'v2' = 'v2') {
   const namespace = version === 'v1' ? 'http://purolator.com/pws/datatypes/v1' : 'http://purolator.com/pws/datatypes/v2'
   const versionNumber = version === 'v1' ? '1.2' : '2.0'
 
+  // UserToken is optional (minOccurs="0" in WSDL) and only needed for resellers
+  // We use Basic Auth instead, so leave GroupID empty and omit UserToken
   return {
-    $xml: `<RequestContext xmlns="${namespace}"><Version>${versionNumber}</Version><Language>en</Language><GroupID>xxx</GroupID><RequestReference>Rating Example</RequestReference><UserToken>${credentials.key}</UserToken></RequestContext>`
+    $xml: `<RequestContext xmlns="${namespace}"><Version>${versionNumber}</Version><Language>en</Language><GroupID></GroupID><RequestReference>Rating Example</RequestReference></RequestContext>`
   }
 }
 
