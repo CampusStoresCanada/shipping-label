@@ -127,7 +127,9 @@ async function createSoapClient(wsdlUrl: string, endpoint?: string, version: 'v1
         strictSSL: false,
       },
       wsdl_headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       },
       endpoint: endpoint // Override endpoint if provided
     }
