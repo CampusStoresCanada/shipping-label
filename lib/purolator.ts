@@ -802,14 +802,20 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     })
 
     console.log('📊 Documents Response Status:', response.status)
-    console.log('📊 Documents Response Data (first 500 chars):', typeof response.data === 'string' ? response.data.substring(0, 500) : JSON.stringify(response.data).substring(0, 500))
+    console.log('📊 Documents Response Data (full):', response.data)
 
     if (response.status !== 200) {
       throw new Error(`GetDocuments failed with status ${response.status}: ${JSON.stringify(response.data)}`)
     }
 
     // Parse the response for the base64 PDF data
-    const documentMatch = response.data.match(/<Data>([^<]+)<\/Data>/)
+    // Try both <Data> and <DocumentDetails> patterns
+    let documentMatch = response.data.match(/<Data>([^<]+)<\/Data>/)
+    if (!documentMatch) {
+      // Try alternate pattern with namespace
+      documentMatch = response.data.match(/<[^:>]*:?Data[^>]*>([^<]+)<\/[^:>]*:?Data>/)
+    }
+
     if (documentMatch && documentMatch[1]) {
       const base64Data = documentMatch[1]
       console.log('✅ Extracted label PDF (base64 length:', base64Data.length, ')')
@@ -818,6 +824,7 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
       }
     }
 
+    console.error('❌ Could not find document data in response. Full response:', response.data)
     throw new Error('No document data found in response')
   } catch (error) {
     console.error('❌ Error in getShipmentDocuments:', error)
