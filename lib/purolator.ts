@@ -722,15 +722,26 @@ export async function createShipment(
     }
 
     // STEP 3: Get the shipping label/documents
-    // NOTE: GetDocuments endpoint requires AWS Signature v4 authentication, not Basic Auth
-    // Skipping for now - labels are optional and can be accessed via Purolator portal
-    console.log('📄 Step 3: Shipping label can be accessed via Purolator portal')
-    console.log('   Tracking: https://www.purolator.com/en/ship-track/tracking-details.page?pin=' + parsed.shipmentPIN)
+    console.log('📄 Step 3: Retrieving shipping label PDF...')
+    try {
+      const documents = await getShipmentDocuments(parsed.shipmentPIN)
+      console.log('✅ Successfully retrieved label PDF')
 
-    return {
-      trackingNumber: parsed.shipmentPIN,
-      labelUrl: '', // Labels require AWS S3 auth - not implemented
-      rawResponse: response.data,
+      return {
+        trackingNumber: parsed.shipmentPIN,
+        labelBase64: documents.labelBase64,
+        rawResponse: response.data,
+      }
+    } catch (docError: any) {
+      console.error('⚠️ Warning: Could not retrieve shipping label:', docError.message)
+      console.log('   Label can be accessed via Purolator portal')
+
+      // Return shipment info without label
+      return {
+        trackingNumber: parsed.shipmentPIN,
+        labelBase64: '',
+        rawResponse: response.data,
+      }
     }
   } catch (error) {
     console.error('❌ Error in createShipment:', error)
@@ -740,31 +751,32 @@ export async function createShipment(
 
 // Get shipping documents (label PDF) for a shipment
 export async function getShipmentDocuments(trackingNumber: string): Promise<{
-  labelUrl: string
+  labelBase64: string
 }> {
   try {
     const xml = `<?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v2="http://purolator.com/pws/datatypes/v2">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://purolator.com/pws/datatypes/v1">
    <soapenv:Header>
-     <v2:RequestContext>
-       <v2:Version>2.0</v2:Version>
-       <v2:Language>en</v2:Language>
-       <v2:GroupID></v2:GroupID>
-       <v2:RequestReference>Rating Example</v2:RequestReference>
-     </v2:RequestContext>
+     <v1:RequestContext>
+       <v1:Version>1.0</v1:Version>
+       <v1:Language>en</v1:Language>
+       <v1:GroupID>11</v1:GroupID>
+       <v1:RequestReference>GetDocuments</v1:RequestReference>
+     </v1:RequestContext>
    </soapenv:Header>
    <soapenv:Body>
-      <v2:GetDocumentsRequest>
-         <v2:OutputType>PDF</v2:OutputType>
-         <v2:Synchronous>true</v2:Synchronous>
-         <v2:DocumentCriterium>
-            <v2:DocumentCriteria>
-               <v2:PIN>
-                  <v2:Value>${escapeXml(trackingNumber)}</v2:Value>
-               </v2:PIN>
-            </v2:DocumentCriteria>
-         </v2:DocumentCriterium>
-      </v2:GetDocumentsRequest>
+      <v1:GetDocumentsRequest>
+         <v1:DocumentCriterium>
+            <v1:DocumentCriteria>
+               <v1:PIN>
+                  <v1:Value>${escapeXml(trackingNumber)}</v1:Value>
+               </v1:PIN>
+               <v1:DocumentTypes>
+                  <v1:DocumentType>DomesticBillOfLading</v1:DocumentType>
+               </v1:DocumentTypes>
+            </v1:DocumentCriteria>
+         </v1:DocumentCriterium>
+      </v1:GetDocumentsRequest>
    </soapenv:Body>
 </soapenv:Envelope>`
 
@@ -774,25 +786,26 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     const response = await axios.post(endpoint, xml, {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://purolator.com/pws/service/v2/GetDocuments',
+        'SOAPAction': 'http://purolator.com/pws/service/v1/GetDocuments',
         'Authorization': authHeader,
       },
       validateStatus: () => true,
     })
 
     console.log('📊 Documents Response Status:', response.status)
-    console.log('📊 Documents Response Body:', response.data)
+    console.log('📊 Documents Response Body:', typeof response.data === 'string' ? response.data.substring(0, 500) : response.data)
 
     if (response.status !== 200) {
-      throw new Error(`GetDocuments failed with status ${response.status}: ${response.data}`)
+      throw new Error(`GetDocuments failed with status ${response.status}`)
     }
 
     // Parse the response for the base64 PDF data
     const documentMatch = response.data.match(/<Data>([^<]+)<\/Data>/)
     if (documentMatch && documentMatch[1]) {
       const base64Data = documentMatch[1]
+      console.log('✅ Extracted label PDF (base64 length:', base64Data.length, ')')
       return {
-        labelUrl: `data:application/pdf;base64,${base64Data}`,
+        labelBase64: base64Data,
       }
     }
 

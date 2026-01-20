@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Shipment } from '@/lib/supabase'
 import { createShipment as createPurolatorShipment, getQuickEstimate, CONFERENCE_ADDRESS } from '@/lib/purolator'
-import { sendShipmentNotification, sendTrackingEmail } from '@/lib/email'
+import { sendShipmentNotification, sendTrackingEmail, sendShippingLabel } from '@/lib/email'
 import { createShipmentInvoice } from '@/lib/stripe'
 
 type ShipmentRequest = {
@@ -99,7 +99,7 @@ export default async function handler(
 
     // Step 2: Create shipment with Purolator API
     let trackingNumber: string
-    let labelUrl: string
+    let labelBase64: string
     let purolatorResponse: any
 
     try {
@@ -137,17 +137,17 @@ export default async function handler(
       )
 
       trackingNumber = result.trackingNumber
-      labelUrl = result.labelUrl
+      labelBase64 = result.labelBase64
       purolatorResponse = result.rawResponse
 
       console.log(`  ✅ Shipment created: ${trackingNumber}`)
-      console.log(`  ✅ Label URL: ${labelUrl ? 'Generated' : 'Missing'}`)
+      console.log(`  ✅ Label PDF: ${labelBase64 ? 'Retrieved' : 'Missing'}`)
     } catch (purolatorError: any) {
       console.error('  ❌ Purolator API Error:', purolatorError)
 
       // Fallback to mock data in case of error (for testing)
       trackingNumber = `ERROR-${Date.now()}`
-      labelUrl = ''
+      labelBase64 = ''
       estimatedCost = calculateEstimatedCost(
         shipmentData.weight,
         shipmentData.destination_province
@@ -184,7 +184,6 @@ export default async function handler(
         billing_account: shipmentData.billing_account,
         billing_type: shipmentData.billing_type,
         estimated_cost: estimatedCost,
-        purolator_label_url: labelUrl,
         purolator_response: purolatorResponse,
         status: 'pending',
         notes: shipmentData.notes || null,
@@ -259,10 +258,22 @@ export default async function handler(
         destinationAddress: `${shipmentData.destination_street}, ${shipmentData.destination_city}, ${shipmentData.destination_province} ${shipmentData.destination_postal_code}`,
         estimatedCost,
         billingType: shipmentData.billing_type,
-        billingAccount: shipmentData.billing_account,
-        labelUrl: labelUrl || undefined
+        billingAccount: shipmentData.billing_account
       })
       console.log('✅ Internal notification sent to office')
+
+      // Send shipping label PDF if available
+      if (labelBase64) {
+        await sendShippingLabel({
+          trackingNumber,
+          labelBase64,
+          contactName: shipmentData.contact_name,
+          contactEmail: shipmentData.contact_email,
+          organizationName: shipmentData.organization_name,
+          destinationAddress: `${shipmentData.destination_street}, ${shipmentData.destination_city}, ${shipmentData.destination_province} ${shipmentData.destination_postal_code}`
+        })
+        console.log('✅ Shipping label PDF emailed')
+      }
     } catch (emailError) {
       // Log error but don't fail the whole request
       console.error('⚠️  Failed to send email notifications:', emailError)
