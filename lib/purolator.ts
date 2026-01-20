@@ -664,7 +664,9 @@ export async function createShipment(
     }
 
     // STEP 2: Create shipment using raw XML with proper namespaces
+    const endpoint = (config as any).shippingEndpoint
     console.log('📦 Step 2: Creating shipment with raw XML...')
+    console.log('  Shipping Endpoint:', endpoint)
 
     const xml = buildCreateShipmentXML({
       senderStreetNumber: senderParsed.streetNumber,
@@ -695,7 +697,6 @@ export async function createShipment(
     })
 
     const authHeader = 'Basic ' + Buffer.from(`${credentials.key}:${credentials.password}`).toString('base64')
-    const endpoint = (config as any).shippingEndpoint
 
     const response = await axios.post(endpoint, xml, {
       headers: {

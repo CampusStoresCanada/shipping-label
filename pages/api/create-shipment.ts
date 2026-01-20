@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Shipment } from '@/lib/supabase'
 import { createShipment as createPurolatorShipment, getQuickEstimate, CONFERENCE_ADDRESS } from '@/lib/purolator'
-import { sendShipmentNotification, sendTrackingEmail, sendShippingLabel } from '@/lib/email'
+import { sendShipmentNotification, sendTrackingEmail } from '@/lib/email'
 import { createShipmentInvoice } from '@/lib/stripe'
 
 type ShipmentRequest = {
