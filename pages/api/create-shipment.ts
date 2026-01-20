@@ -249,7 +249,10 @@ export default async function handler(
       })
       console.log('✅ Tracking email sent to recipient')
 
-      // Send internal notification to CSC office
+      // Add small delay to avoid rate limiting (Resend: 2 emails/sec)
+      await new Promise(resolve => setTimeout(resolve, 600))
+
+      // Send internal notification to CSC office with shipping label PDF attached
       await sendShipmentNotification({
         trackingNumber,
         contactName: shipmentData.contact_name,
@@ -258,22 +261,10 @@ export default async function handler(
         destinationAddress: `${shipmentData.destination_street}, ${shipmentData.destination_city}, ${shipmentData.destination_province} ${shipmentData.destination_postal_code}`,
         estimatedCost,
         billingType: shipmentData.billing_type,
-        billingAccount: shipmentData.billing_account
+        billingAccount: shipmentData.billing_account,
+        labelBase64: labelBase64 || undefined
       })
-      console.log('✅ Internal notification sent to office')
-
-      // Send shipping label PDF if available
-      if (labelBase64) {
-        await sendShippingLabel({
-          trackingNumber,
-          labelBase64,
-          contactName: shipmentData.contact_name,
-          contactEmail: shipmentData.contact_email,
-          organizationName: shipmentData.organization_name,
-          destinationAddress: `${shipmentData.destination_street}, ${shipmentData.destination_city}, ${shipmentData.destination_province} ${shipmentData.destination_postal_code}`
-        })
-        console.log('✅ Shipping label PDF emailed')
-      }
+      console.log('✅ Internal notification sent to office with shipping label')
     } catch (emailError) {
       // Log error but don't fail the whole request
       console.error('⚠️  Failed to send email notifications:', emailError)

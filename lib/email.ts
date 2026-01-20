@@ -113,7 +113,7 @@ Please do not reply to this email
   }
 }
 
-// Send internal notification to CSC office
+// Send internal notification to CSC office with shipping label
 export async function sendShipmentNotification(data: {
   trackingNumber: string
   contactName: string
@@ -123,7 +123,7 @@ export async function sendShipmentNotification(data: {
   estimatedCost: number
   billingType: 'csc' | 'institution'
   billingAccount: string
-  labelUrl?: string
+  labelBase64?: string
 }) {
   try {
     const notificationEmail = process.env.NOTIFICATION_EMAIL || 'google@campusstores.ca'
@@ -144,9 +144,9 @@ export async function sendShipmentNotification(data: {
         <li><strong>Billing:</strong> ${data.billingType === 'csc' ? 'CSC Account' : 'Institution Account'} #${data.billingAccount}</li>
       </ul>
 
-      ${data.labelUrl ? `
+      ${data.labelBase64 ? `
       <h3>Shipping Label</h3>
-      <p>The shipping label is attached or can be accessed via the tracking system.</p>
+      <p><strong>The thermal label PDF is attached to this email.</strong> Print it on your thermal printer for package pickup.</p>
       ` : ''}
 
       <p style="margin-top: 20px; color: #666; font-size: 12px;">
@@ -154,12 +154,24 @@ export async function sendShipmentNotification(data: {
       </p>
     `
 
-    const { data: emailData, error } = await resend.emails.send({
+    const emailOptions: any = {
       from: 'CSC Shipping <noreply@campusstores.ca>',
       to: [notificationEmail],
       subject: `New Shipment: ${data.trackingNumber} - ${data.contactName}`,
       html: emailHtml,
-    })
+    }
+
+    // Attach PDF if available
+    if (data.labelBase64) {
+      emailOptions.attachments = [
+        {
+          filename: `label-${data.trackingNumber}.pdf`,
+          content: data.labelBase64,
+        },
+      ]
+    }
+
+    const { data: emailData, error } = await resend.emails.send(emailOptions)
 
     if (error) {
       console.error('Failed to send email notification:', error)
@@ -170,65 +182,6 @@ export async function sendShipmentNotification(data: {
     return emailData
   } catch (error) {
     console.error('Error sending email:', error)
-    throw error
-  }
-}
-
-// Send shipping label PDF to internal team
-export async function sendShippingLabel(data: {
-  trackingNumber: string
-  labelBase64: string
-  contactName: string
-  contactEmail: string
-  organizationName: string
-  destinationAddress: string
-}) {
-  try {
-    const internalEmail = process.env.NOTIFICATION_EMAIL || 'noreply@campusstores.ca'
-    const shipDate = new Date().toISOString().split('T')[0]
-    const trackingUrl = `https://www.purolator.com/en/shipping/tracker?pin=${data.trackingNumber}&sdate=${shipDate}`
-
-    const emailHtml = `
-      <h2>Shipping Label Ready</h2>
-      <p>A thermal label has been generated for shipment <strong>${data.trackingNumber}</strong></p>
-
-      <h3>Shipment Details</h3>
-      <ul>
-        <li><strong>Tracking Number:</strong> <a href="${trackingUrl}">${data.trackingNumber}</a></li>
-        <li><strong>Recipient:</strong> ${data.contactName} (${data.contactEmail})</li>
-        <li><strong>Organization:</strong> ${data.organizationName}</li>
-        <li><strong>Destination:</strong> ${data.destinationAddress}</li>
-      </ul>
-
-      <p><strong>The thermal label PDF is attached to this email.</strong> Print it on your thermal printer for package pickup.</p>
-
-      <p style="margin-top: 20px; color: #666; font-size: 12px;">
-        This email was generated automatically by the CSC Conference Shipping Station.
-      </p>
-    `
-
-    const { data: emailData, error } = await resend.emails.send({
-      from: 'CSC Shipping <noreply@campusstores.ca>',
-      to: [internalEmail],
-      subject: `Shipping Label - ${data.trackingNumber}`,
-      html: emailHtml,
-      attachments: [
-        {
-          filename: `label-${data.trackingNumber}.pdf`,
-          content: data.labelBase64,
-        },
-      ],
-    })
-
-    if (error) {
-      console.error('Failed to send label email:', error)
-      throw error
-    }
-
-    console.log('✅ Shipping label emailed:', emailData)
-    return emailData
-  } catch (error) {
-    console.error('Error sending label email:', error)
     throw error
   }
 }
