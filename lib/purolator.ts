@@ -546,7 +546,7 @@ export async function createShipment(
   }
 ): Promise<{
   trackingNumber: string
-  labelUrl: string
+  labelBase64: string
   rawResponse: any
 }> {
   try {
