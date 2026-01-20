@@ -42,7 +42,7 @@ async function testCreateShipment() {
 
     console.log('\n✅ CreateShipment SUCCESS!')
     console.log('Tracking Number:', result.trackingNumber)
-    console.log('Label URL:', result.labelUrl ? 'Generated' : 'Not included')
+    console.log('Label PDF:', result.labelBase64 ? 'Retrieved' : 'Not included')
 
   } catch (error) {
     console.error('\n❌ CreateShipment FAILED!')
