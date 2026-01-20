@@ -9,7 +9,8 @@ const stripe = new Stripe(stripeConfig.secretKey, {
 export { stripe }
 
 /**
- * Find or create a Stripe customer for the given email
+ * Find or create a Stripe customer for the given organization billing
+ * Always creates a NEW customer per invoice to ensure accurate billing records
  */
 export async function findOrCreateCustomer(params: {
   email: string
@@ -17,18 +18,9 @@ export async function findOrCreateCustomer(params: {
   organizationName?: string
   metadata?: Record<string, string>
 }): Promise<Stripe.Customer> {
-  // First, try to find existing customer by email
-  const existingCustomers = await stripe.customers.list({
-    email: params.email,
-    limit: 1
-  })
-
-  if (existingCustomers.data.length > 0) {
-    console.log(`✅ Found existing Stripe customer: ${existingCustomers.data[0].id}`)
-    return existingCustomers.data[0]
-  }
-
-  // Create new customer
+  // ALWAYS create a new customer for each invoice
+  // This ensures each shipment has accurate contact/org info
+  // Stripe invoices are per-shipment, not per-person
   const customer = await stripe.customers.create({
     email: params.email,
     name: params.name,
@@ -42,6 +34,9 @@ export async function findOrCreateCustomer(params: {
   })
 
   console.log(`✅ Created new Stripe customer: ${customer.id}`)
+  console.log(`   Email: ${params.email}`)
+  console.log(`   Name: ${params.name}`)
+  console.log(`   Organization: ${params.organizationName}`)
   return customer
 }
 
