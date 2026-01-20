@@ -802,30 +802,42 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     })
 
     console.log('📊 Documents Response Status:', response.status)
-    console.log('📊 Documents Response Data (full):', response.data)
 
     if (response.status !== 200) {
       throw new Error(`GetDocuments failed with status ${response.status}: ${JSON.stringify(response.data)}`)
     }
 
-    // Parse the response for the base64 PDF data
-    // Try both <Data> and <DocumentDetails> patterns
-    let documentMatch = response.data.match(/<Data>([^<]+)<\/Data>/)
-    if (!documentMatch) {
-      // Try alternate pattern with namespace
-      documentMatch = response.data.match(/<[^:>]*:?Data[^>]*>([^<]+)<\/[^:>]*:?Data>/)
+    // Extract the PDF URL from the response
+    const urlMatch = response.data.match(/<URL>([^<]+)<\/URL>/)
+    if (!urlMatch || !urlMatch[1]) {
+      console.error('❌ Could not find URL in response. Response:', response.data)
+      throw new Error('No document URL found in response')
     }
 
-    if (documentMatch && documentMatch[1]) {
-      const base64Data = documentMatch[1]
-      console.log('✅ Extracted label PDF (base64 length:', base64Data.length, ')')
-      return {
-        labelBase64: base64Data,
-      }
+    const pdfUrl = urlMatch[1]
+    console.log('📄 Found PDF URL:', pdfUrl.substring(0, 100) + '...')
+
+    // Download the PDF from the URL
+    console.log('📥 Downloading PDF from Purolator...')
+    const pdfResponse = await axios.get(pdfUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        'Authorization': authHeader,
+      },
+      validateStatus: () => true,
+    })
+
+    if (pdfResponse.status !== 200) {
+      throw new Error(`PDF download failed with status ${pdfResponse.status}`)
     }
 
-    console.error('❌ Could not find document data in response. Full response:', response.data)
-    throw new Error('No document data found in response')
+    // Convert to base64
+    const base64Data = Buffer.from(pdfResponse.data).toString('base64')
+    console.log('✅ Downloaded and converted PDF to base64 (length:', base64Data.length, ')')
+
+    return {
+      labelBase64: base64Data,
+    }
   } catch (error) {
     console.error('❌ Error in getShipmentDocuments:', error)
     throw error
