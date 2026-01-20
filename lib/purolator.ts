@@ -783,6 +783,12 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     const authHeader = 'Basic ' + Buffer.from(`${credentials.key}:${credentials.password}`).toString('base64')
     const endpoint = (config as any).documentsEndpoint
 
+    console.log('📄 GetDocuments Request Details:')
+    console.log('  Endpoint:', endpoint)
+    console.log('  Tracking Number:', trackingNumber)
+    console.log('  Auth Key:', credentials.key)
+    console.log('  Request XML:', xml)
+
     const response = await axios.post(endpoint, xml, {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
@@ -793,7 +799,8 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     })
 
     console.log('📊 Documents Response Status:', response.status)
-    console.log('📊 Documents Response Body:', typeof response.data === 'string' ? response.data.substring(0, 500) : response.data)
+    console.log('📊 Documents Response Headers:', response.headers)
+    console.log('📊 Documents Response Body:', typeof response.data === 'string' ? response.data : JSON.stringify(response.data))
 
     if (response.status !== 200) {
       throw new Error(`GetDocuments failed with status ${response.status}`)
