@@ -755,28 +755,28 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
 }> {
   try {
     const xml = `<?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://purolator.com/pws/datatypes/v1">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v2="http://purolator.com/pws/datatypes/v2">
    <soapenv:Header>
-     <v1:RequestContext>
-       <v1:Version>1.0</v1:Version>
-       <v1:Language>en</v1:Language>
-       <v1:GroupID>11</v1:GroupID>
-       <v1:RequestReference>GetDocuments</v1:RequestReference>
-     </v1:RequestContext>
+     <v2:RequestContext>
+       <v2:Version>2.0</v2:Version>
+       <v2:Language>en</v2:Language>
+       <v2:GroupID></v2:GroupID>
+       <v2:RequestReference>GetDocuments</v2:RequestReference>
+     </v2:RequestContext>
    </soapenv:Header>
    <soapenv:Body>
-      <v1:GetDocumentsRequest>
-         <v1:DocumentCriterium>
-            <v1:DocumentCriteria>
-               <v1:PIN>
-                  <v1:Value>${escapeXml(trackingNumber)}</v1:Value>
-               </v1:PIN>
-               <v1:DocumentTypes>
-                  <v1:DocumentType>DomesticBillOfLading</v1:DocumentType>
-               </v1:DocumentTypes>
-            </v1:DocumentCriteria>
-         </v1:DocumentCriterium>
-      </v1:GetDocumentsRequest>
+      <v2:GetDocumentsRequest>
+         <v2:DocumentCriterium>
+            <v2:DocumentCriteria>
+               <v2:PIN>
+                  <v2:Value>${escapeXml(trackingNumber)}</v2:Value>
+               </v2:PIN>
+               <v2:DocumentTypes>
+                  <v2:DocumentType>DomesticBillOfLading</v2:DocumentType>
+               </v2:DocumentTypes>
+            </v2:DocumentCriteria>
+         </v2:DocumentCriterium>
+      </v2:GetDocumentsRequest>
    </soapenv:Body>
 </soapenv:Envelope>`
 
@@ -792,7 +792,7 @@ export async function getShipmentDocuments(trackingNumber: string): Promise<{
     const response = await axios.post(endpoint, xml, {
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': 'http://purolator.com/pws/service/v1/GetDocuments',
+        'SOAPAction': 'http://purolator.com/pws/service/v2/GetDocuments',
         'Authorization': authHeader,
       },
       validateStatus: () => true,
