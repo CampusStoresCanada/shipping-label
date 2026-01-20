@@ -32,7 +32,7 @@ async function test() {
 
     console.log('\n✅ SUCCESS!')
     console.log('Tracking Number:', result.trackingNumber)
-    console.log('Label URL:', result.labelUrl ? 'Generated' : 'Not included')
+    console.log('Label PDF:', result.labelBase64 ? 'Retrieved' : 'Not included')
     console.log('\nRaw Response Preview:', result.rawResponse.substring(0, 500))
   } catch (error: any) {
     console.error('\n❌ FAILED:', error.message)
