@@ -16,20 +16,34 @@ export default function SuccessScreen({
   labelUrl,
   shipmentCount,
   onReset,
-  autoResetSeconds = 5,
+  autoResetSeconds = 15,
   shipmentId,
   billingType,
   estimatedCost
 }: SuccessScreenProps) {
-  // Invoice is already created during shipment creation, no need to create it here
+  const [countdown, setCountdown] = useState(autoResetSeconds)
 
   useEffect(() => {
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
     // Auto-reset after specified seconds
     const timer = setTimeout(() => {
       onReset()
     }, autoResetSeconds * 1000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      clearInterval(countdownInterval)
+    }
   }, [onReset, autoResetSeconds])
 
   return (
@@ -70,11 +84,6 @@ export default function SuccessScreen({
         <div className="text-2xl font-mono font-bold text-gray-900">
           {trackingNumber}
         </div>
-      </div>
-
-      {/* Shipment Count */}
-      <div className="text-lg text-gray-700">
-        Shipment <span className="font-bold text-indigo-600">#{shipmentCount}</span> of the day
       </div>
 
       {/* Label URL */}
@@ -131,7 +140,7 @@ export default function SuccessScreen({
       {/* Auto-reset message */}
       <div className="pt-4 border-t border-gray-200">
         <p className="text-sm text-gray-500 mb-4">
-          Returning to start in {autoResetSeconds} seconds...
+          Returning to start in {countdown} {countdown === 1 ? 'second' : 'seconds'}...
         </p>
         <button
           onClick={onReset}
